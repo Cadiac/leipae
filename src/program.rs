@@ -58,6 +58,13 @@ impl ShaderProgram {
             gl::Uniform1f(gl::GetUniformLocation(self.id(), name_c_str.as_ptr()), value);
         }
     }
+
+    pub fn set_uniform2_f32(&self, name: &str, a: f32, b: f32) {
+        unsafe {
+            let name_c_str = CString::new(name.as_bytes()).unwrap();
+            gl::Uniform2f(gl::GetUniformLocation(self.id(), name_c_str.as_ptr()), a, b);
+        }
+    }
 }
 
 impl Drop for ShaderProgram {

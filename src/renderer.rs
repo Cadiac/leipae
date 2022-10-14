@@ -67,9 +67,6 @@ impl Renderer {
             // Unbind the VBO and VAO
             gl::BindBuffer(gl::ARRAY_BUFFER, 0);
             gl::BindVertexArray(0);
-
-            // Enable wireframe mode
-            // gl::PolygonMode(gl::FRONT_AND_BACK, gl::LINE);
         }
 
         return Ok(Self {
@@ -86,6 +83,7 @@ impl Renderer {
 
             self.program.activate();
             self.program.set_uniform_f32("iTime", t);
+            self.program.set_uniform2_f32("iResolution", 800.0, 800.0);
 
             gl::BindVertexArray(self.vao);
             gl::DrawArrays(gl::TRIANGLE_STRIP, 0, 4);
