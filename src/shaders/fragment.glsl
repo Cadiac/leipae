@@ -24,6 +24,31 @@ float ndot(in vec2 a, in vec2 b) {
     return a.x * b.x - a.y * b.y;
 }
 
+// http://en.wikipedia.org/wiki/Rotation_matrix#Basic_rotations
+mat4 rotateX(float theta) {
+    float s = sin(theta);
+    float c = cos(theta);
+
+    return mat4(vec4(1, 0, 0, 0), vec4(0, c, -s, 0), vec4(0, s, c, 0),
+                vec4(0, 0, 0, 1));
+}
+
+mat4 rotateY(float theta) {
+    float s = sin(theta);
+    float c = cos(theta);
+
+    return mat4(vec4(c, 0, s, 0), vec4(0, 1, 0, 0), vec4(-s, 0, c, 0),
+                vec4(0, 0, 0, 1));
+}
+
+mat4 rotateZ(float theta) {
+    float s = sin(theta);
+    float c = cos(theta);
+
+    return mat4(vec4(c, -s, 0, 0), vec4(s, c, 0, 0), vec4(0, 0, 1, 0),
+                vec4(0, 0, 0, 1));
+}
+
 float sdIntersect(float distA, float distB) {
     return max(distA, distB);
 }
@@ -67,10 +92,14 @@ float sdSphere(vec3 p, float s) {
 }
 
 float sdScene(vec3 p) {
-    float boxFrameDist = sdBoxFrame(p, vec3(1.0), 0.25);
-    float sphereDist = sdSphere(p, 1.0);
+    float sphereDist = sdSphere(p / 1.2, 1.0) * 1.2;
+    vec3 cubePoint =
+        (rotateY(sin(iTime)) * rotateX(cos(iTime)) * rotateZ(sin(iTime)) *
+         vec4(p.x, p.y + sin(iTime), p.z, 1.0))
+            .xyz;
 
-    return sdUnion(boxFrameDist, sphereDist);
+    float cubeDist = sdBoxFrame(cubePoint, vec3(1.0), 0.25);
+    return sdIntersect(cubeDist, sphereDist);
 }
 
 vec3 estimateNormal(vec3 p) {
@@ -212,7 +241,8 @@ float shortestDistanceToSurface(vec3 camera, vec3 marchingDirection,
 
 void main() {
     vec3 viewDir = rayDirection(FOV, iResolution, gl_FragCoord.xy);
-    vec3 camera = vec3(8.0 + 4 * sin(iTime), 5.0 + 4 * cos(iTime), 7.0);
+    // vec3 camera = vec3(8.0 + 4 * sin(iTime), 5.0 + 4 * cos(iTime), 7.0);
+    vec3 camera = vec3(8.0, 5.0, 7.0);
 
     mat4 viewToWorld = lookAt(camera, vec3(0.0, 0.0, 0.0), vec3(0.0, 1.0, 0.0));
 
@@ -229,10 +259,10 @@ void main() {
     // The closest point on the surface to the eyepoint along the view ray
     vec3 p = camera + dist * worldDir;
 
-    vec3 K_a = vec3(0.2, 0.2, 0.2);
-    vec3 K_d = vec3(1.0, 1.0, 1.0);
+    vec3 K_a = vec3(estimateNormal(p) + vec3(1.0)) / 2;
+    vec3 K_d = K_a;
     vec3 K_s = vec3(1.0, 1.0, 1.0);
-    float shininess = 10.0;
+    float shininess = 50.0;
 
     vec3 color = phongIllumination(K_a, K_d, K_s, shininess, p, camera);
 
