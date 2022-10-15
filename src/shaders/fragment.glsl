@@ -15,11 +15,51 @@ const float EPSILON = 0.0001;
 float dot2(in vec2 v) {
     return dot(v, v);
 }
+
 float dot2(in vec3 v) {
     return dot(v, v);
 }
+
 float ndot(in vec2 a, in vec2 b) {
     return a.x * b.x - a.y * b.y;
+}
+
+float sdIntersect(float distA, float distB) {
+    return max(distA, distB);
+}
+
+float sdUnion(float distA, float distB) {
+    return min(distA, distB);
+}
+
+float sdDifference(float distA, float distB) {
+    return max(distA, -distB);
+}
+
+float sdRoundBox(vec3 p, vec3 b, float r) {
+    vec3 q = abs(p) - b;
+    return length(max(q, 0.0)) + min(max(q.x, max(q.y, q.z)), 0.0) - r;
+}
+
+float sdBox(vec3 p, vec3 b) {
+    vec3 q = abs(p) - b;
+    return length(max(q, 0.0)) + min(max(q.x, max(q.y, q.z)), 0.0);
+}
+
+float sdBoxFrame(vec3 p, vec3 b, float e) {
+    p = abs(p) - b;
+    vec3 q = abs(p + e) - e;
+    return min(min(length(max(vec3(p.x, q.y, q.z), 0.0)) +
+                       min(max(p.x, max(q.y, q.z)), 0.0),
+                   length(max(vec3(q.x, p.y, q.z), 0.0)) +
+                       min(max(q.x, max(p.y, q.z)), 0.0)),
+               length(max(vec3(q.x, q.y, p.z), 0.0)) +
+                   min(max(q.x, max(q.y, p.z)), 0.0));
+}
+
+float sdTorus(vec3 p, vec2 t) {
+    vec2 q = vec2(length(p.xz) - t.x, p.y);
+    return length(q) - t.y;
 }
 
 float sdSphere(vec3 p, float s) {
@@ -27,16 +67,31 @@ float sdSphere(vec3 p, float s) {
 }
 
 float sdScene(vec3 p) {
-    return sdSphere(p, 1.0);
+    float boxFrameDist = sdBoxFrame(p, vec3(1.0), 0.25);
+    float sphereDist = sdSphere(p, 1.0);
+
+    return sdUnion(boxFrameDist, sphereDist);
 }
 
 vec3 estimateNormal(vec3 p) {
-    return normalize(vec3(sdScene(vec3(p.x + EPSILON, p.y, p.z)) -
-                              sdScene(vec3(p.x - EPSILON, p.y, p.z)),
-                          sdScene(vec3(p.x, p.y + EPSILON, p.z)) -
-                              sdScene(vec3(p.x, p.y - EPSILON, p.z)),
-                          sdScene(vec3(p.x, p.y, p.z + EPSILON)) -
-                              sdScene(vec3(p.x, p.y, p.z - EPSILON))));
+    float dx = sdScene(vec3(p.x + EPSILON, p.y, p.z)) -
+               sdScene(vec3(p.x - EPSILON, p.y, p.z));
+    float dy = sdScene(vec3(p.x, p.y + EPSILON, p.z)) -
+               sdScene(vec3(p.x, p.y - EPSILON, p.z));
+    float dz = sdScene(vec3(p.x, p.y, p.z + EPSILON)) -
+               sdScene(vec3(p.x, p.y, p.z - EPSILON));
+    return normalize(vec3(dx, dy, dz));
+}
+
+// Create a homogeneous transformation matrix that will cause a vector to
+// point at `target`, using `up` for orientation.
+mat4 lookAt(vec3 camera, vec3 target, vec3 up) {
+    vec3 f = normalize(target - camera);
+    vec3 s = normalize(cross(up, f));
+    vec3 u = cross(f, s);
+
+    return mat4(vec4(s, 0.0), vec4(u, 0.0), vec4(-f, 0.0),
+                vec4(0.0, 0.0, 0.0, 1.0));
 }
 
 /**
@@ -76,10 +131,10 @@ vec3 phongContribForLight(vec3 k_d, vec3 k_s, float alpha, vec3 p, vec3 camera,
     // vec3 R = 2 * dot(L, N) * N - L;
 
     // float dotLN = dot(L, N);
-    float dotLN = clamp(dot(L, N), 0.0, 1.0); 
+    float dotLN = clamp(dot(L, N), 0.0, 1.0);
     float dotRV = dot(R, V);
 
-    // TODO: Why are these skipped?
+    // Why are these skipped?
     // > "Although the above formulation is the common way of presenting
     // the Phong reflection model, each term should only be included if the
     // term's dot product is positive."
@@ -156,9 +211,15 @@ float shortestDistanceToSurface(vec3 camera, vec3 marchingDirection,
 }
 
 void main() {
-    vec3 dir = rayDirection(FOV, iResolution, gl_FragCoord.xy);
-    vec3 camera = vec3(0.0, 0.0, 10.0);
-    float dist = shortestDistanceToSurface(camera, dir, MIN_DIST, MAX_DIST);
+    vec3 viewDir = rayDirection(FOV, iResolution, gl_FragCoord.xy);
+    vec3 camera = vec3(8.0 + 4 * sin(iTime), 5.0 + 4 * cos(iTime), 7.0);
+
+    mat4 viewToWorld = lookAt(camera, vec3(0.0, 0.0, 0.0), vec3(0.0, 1.0, 0.0));
+
+    vec3 worldDir = (viewToWorld * vec4(viewDir, 0.0)).xyz;
+
+    float dist =
+        shortestDistanceToSurface(camera, worldDir, MIN_DIST, MAX_DIST);
 
     if (dist > MAX_DIST - EPSILON) {
         FragColor = vec4(0.0, 0.0, 0.0, 0.0);
@@ -166,7 +227,7 @@ void main() {
     }
 
     // The closest point on the surface to the eyepoint along the view ray
-    vec3 p = camera + dist * dir;
+    vec3 p = camera + dist * worldDir;
 
     vec3 K_a = vec3(0.2, 0.2, 0.2);
     vec3 K_d = vec3(1.0, 1.0, 1.0);
