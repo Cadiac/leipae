@@ -20,6 +20,8 @@ pub struct Renderer {
     program: ShaderProgram,
     vao: GLuint,
     vbo: GLuint,
+    vs_path: &'static str,
+    fs_path: &'static str,
 }
 
 impl Renderer {
@@ -73,7 +75,18 @@ impl Renderer {
             vao,
             vbo,
             program,
+            vs_path,
+            fs_path,
         });
+    }
+
+    pub fn reload(&mut self) -> Result<(), Box<dyn Error>> {
+        let vs = Shader::from_file(self.vs_path, gl::VERTEX_SHADER)?;
+        let fs = Shader::from_file(self.fs_path, gl::FRAGMENT_SHADER)?;
+
+        self.program = ShaderProgram::new(vs, fs);
+
+        Ok(())
     }
 
     pub fn draw(&self, t: f32) {

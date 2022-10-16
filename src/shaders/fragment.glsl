@@ -24,6 +24,23 @@ float ndot(in vec2 a, in vec2 b) {
     return a.x * b.x - a.y * b.y;
 }
 
+// https://stackoverflow.com/a/4275343
+float rand(vec2 co) {
+    return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
+}
+
+// https://gist.github.com/patriciogonzalezvivo/670c22f3966e662d2f83
+float noise(vec2 p) {
+    vec2 ip = floor(p);
+    vec2 u = fract(p);
+    u = u * u * (3.0 - 2.0 * u);
+
+    float res = mix(
+        mix(rand(ip), rand(ip + vec2(1.0, 0.0)), u.x),
+        mix(rand(ip + vec2(0.0, 1.0)), rand(ip + vec2(1.0, 1.0)), u.x), u.y);
+    return res * res;
+}
+
 // http://en.wikipedia.org/wiki/Rotation_matrix#Basic_rotations
 mat4 tRotateX(float theta) {
     float s = sin(theta);
@@ -117,8 +134,50 @@ float sdPlane(vec3 p, float y) {
     return p.y - y + sin(p.x / 4) + sin(p.z / 4);
 }
 
+float sdEllipsoid(vec3 p, vec3 r) {
+    float k0 = length(p / r);
+    float k1 = length(p / (r * r));
+    return k0 * (k0 - 1.0) / k1;
+}
+
+float sdCapsule(vec3 p, vec3 a, vec3 b, float r) {
+    vec3 pa = p - a, ba = b - a;
+    float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
+    return length(pa - ba * h) - r;
+}
+
+float sdTriPrism(vec3 p, vec2 h) {
+    vec3 q = abs(p);
+    return max(q.z - h.y, max(q.x * 0.866025 + p.y * 0.5, -p.y) - h.x * 0.5);
+}
+
+float sdLeipae(vec3 p) {
+    float ellipsoidDist = sdEllipsoid(opBend(p, -0.03), vec3(5.0, 1.0, 1.5)) -
+                          0.25 + (0.05 * noise(p.xz * 5)) +
+                          (0.01 * noise(p.xz * 30));
+
+    float dist = ellipsoidDist;
+    for (int i = -3; i <= 3; ++i) {
+        float offsetY = 1.9;
+        if (i == -2 || i == 2) {
+            offsetY = 1.7;
+        } else if (i == -3 || i == 3) {
+            offsetY = 1.4;
+        }
+
+        float wedge = sdTriPrism((tRotateZ(1.0) * tRotateY(0.3) *
+                                  vec4(p.x + i * 1.1, p.y - offsetY, p.z, 1.0))
+                                     .xyz,
+                                 vec2(1.0, 2.0)) + (0.03 * noise(p.xz * 10));
+
+        dist = opDifference(dist, wedge);
+    }
+
+    return dist;
+}
+
 float sdScene(vec3 p) {
-    float sphereDist = sdSphere(p / 1.2, 1.0) * 1.2;
+    // float sphereDist = sdSphere(p / 1.2, 1.0) * 1.2;
     // vec3 cubePoint =
     //     (rotateY(sin(iTime)) * rotateX(cos(iTime)) * rotateZ(sin(iTime)) *
     //      vec4(p.x, p.y + sin(iTime), p.z, 1.0))
@@ -129,8 +188,10 @@ float sdScene(vec3 p) {
     //                   tRotateZ(sin(0.5)) * vec4(p, 1.0))
     //                      .xyz;
     // float cubeDist = sdBoxFrame(opTwist(p, sin(iTime) * 3), vec3(1.0), 0.25);
-    float cubeDist = sdBoxFrame(opRep(p, 4.0), vec3(1.0), 0.1);
-    return opUnion(sdPlane(p, -5.0), cubeDist);
+    // float cubeDist = sdBoxFrame(p, vec3(1.0), 0.1);
+    float leipaeDist = sdLeipae(p);
+
+    return opUnion(sdPlane(p, -5.0), leipaeDist);
 }
 
 vec3 estimateNormal(vec3 p) {
@@ -233,14 +294,15 @@ vec3 phongIllumination(vec3 k_a, vec3 k_d, vec3 k_s, float alpha, vec3 p,
     const vec3 ambientLight = 0.3 * vec3(1.0, 1.0, 1.0);
     vec3 color = ambientLight * k_a;
 
-    vec3 light1Pos = vec3(camera.x + 4.0 * sin(iTime), camera.y + 2.0, camera.z + 4.0 * cos(iTime));
+    vec3 light1Pos = vec3(camera.x + 4.0 * sin(iTime), camera.y + 2.0,
+                          camera.z + 4.0 * cos(iTime));
     vec3 light1Intensity = vec3(0.4, 0.4, 0.4);
 
     color += phongContribForLight(k_d, k_s, alpha, p, camera, light1Pos,
                                   light1Intensity);
 
-    vec3 light2Pos =
-        vec3(camera.x + 2.0 * sin(0.37 * iTime), camera.y + 2.0 * cos(0.37 * iTime), camera.z + 2.0);
+    vec3 light2Pos = vec3(camera.x + 2.0 * sin(0.37 * iTime),
+                          camera.y + 2.0 * cos(0.37 * iTime), camera.z + 2.0);
     vec3 light2Intensity = vec3(0.4, 0.4, 0.4);
 
     color += phongContribForLight(k_d, k_s, alpha, p, camera, light2Pos,
@@ -272,13 +334,15 @@ float shortestDistanceToSurface(vec3 camera, vec3 marchingDirection,
 
 void main() {
     vec3 viewDir = rayDirection(FOV, iResolution, gl_FragCoord.xy);
-    // vec3 camera = vec3(20 * cos(iTime / 10), 0.0, 20 * sin(iTime / 10));
-    vec3 camera = vec3(0.0, 10 + 10 * cos(iTime / 10), iTime);
-    vec3 target = vec3(
-        camera.x + 20 * cos(iTime / 10),
-        camera.y + 0.0,
-        camera.z + 20 * sin(iTime / 10)
-    );
+    vec3 camera = vec3(20 * cos(iTime / 10), 10.0, 20 * sin(iTime / 10));
+    vec3 target = vec3(0);
+
+    // vec3 camera = vec3(0.0, 10 + 10 * cos(iTime / 10), iTime);
+    // vec3 target = vec3(
+    //     camera.x + 20 * cos(iTime / 10),
+    //     camera.y + 0.0,
+    //     camera.z + 20 * sin(iTime / 10)
+    // );
 
     mat4 viewToWorld = lookAt(camera, target, vec3(0.0, 1.0, 0.0));
 
@@ -295,10 +359,11 @@ void main() {
     // The closest point on the surface to the eyepoint along the view ray
     vec3 p = camera + dist * worldDir;
 
-    vec3 K_a = vec3(estimateNormal(p) + vec3(1.0)) / 2;
+    // vec3 K_a = vec3(estimateNormal(p) + vec3(1.0)) / 2;
+    vec3 K_a = vec3(1.0, 0.7, 0.0);
     vec3 K_d = K_a;
-    vec3 K_s = vec3(1.0, 1.0, 1.0);
-    float shininess = 50.0;
+    vec3 K_s = vec3(0.2, 0.2, 0.2);
+    float shininess = 10.0;
 
     vec3 color = phongIllumination(K_a, K_d, K_s, shininess, p, camera);
 

@@ -24,7 +24,7 @@ impl EventProcessor {
         &mut self,
         mut event_loop: EventLoop<()>,
         gl_window: ContextWrapper<PossiblyCurrent, Window>,
-        renderer: Renderer,
+        mut renderer: Renderer,
     ) -> Result<(), Box<dyn Error>> {
         let last_frame = SystemTime::now();
         let epoch = SystemTime::now();
@@ -45,6 +45,9 @@ impl EventProcessor {
                     } => match input.virtual_keycode {
                         Some(VirtualKeyCode::Escape) => {
                             *control_flow = ControlFlow::Exit
+                        }
+                        Some(VirtualKeyCode::R) => {
+                            renderer.reload().unwrap();
                         }
                         Some(key_code) => {
                             if input.state == glutin::event::ElementState::Pressed {
