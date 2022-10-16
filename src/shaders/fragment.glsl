@@ -25,7 +25,7 @@ float ndot(in vec2 a, in vec2 b) {
 }
 
 // http://en.wikipedia.org/wiki/Rotation_matrix#Basic_rotations
-mat4 rotateX(float theta) {
+mat4 tRotateX(float theta) {
     float s = sin(theta);
     float c = cos(theta);
 
@@ -33,7 +33,7 @@ mat4 rotateX(float theta) {
                 vec4(0, 0, 0, 1));
 }
 
-mat4 rotateY(float theta) {
+mat4 tRotateY(float theta) {
     float s = sin(theta);
     float c = cos(theta);
 
@@ -41,7 +41,7 @@ mat4 rotateY(float theta) {
                 vec4(0, 0, 0, 1));
 }
 
-mat4 rotateZ(float theta) {
+mat4 tRotateZ(float theta) {
     float s = sin(theta);
     float c = cos(theta);
 
@@ -49,16 +49,38 @@ mat4 rotateZ(float theta) {
                 vec4(0, 0, 0, 1));
 }
 
-float sdIntersect(float distA, float distB) {
+float opIntersect(float distA, float distB) {
     return max(distA, distB);
 }
 
-float sdUnion(float distA, float distB) {
+float opUnion(float distA, float distB) {
     return min(distA, distB);
 }
 
-float sdDifference(float distA, float distB) {
+float opDifference(float distA, float distB) {
     return max(distA, -distB);
+}
+
+vec3 opTwist(vec3 p, float k) {
+    float c = cos(k * p.y);
+    float s = sin(k * p.y);
+    mat2 m = mat2(c, -s, s, c);
+    return vec3(m * p.xz, p.y);
+}
+
+vec3 opBend(vec3 p, float k) {
+    float c = cos(k * p.x);
+    float s = sin(k * p.x);
+    mat2 m = mat2(c, -s, s, c);
+    return vec3(m * p.xy, p.z);
+}
+
+vec3 opRep(vec3 p, float c) {
+    return mod(p + 0.5 * c, c) - 0.5 * c;
+}
+
+vec3 opRepLim(vec3 p, float c, vec3 l) {
+    return p - c * clamp(round(p / c), -l, l);
 }
 
 float sdRoundBox(vec3 p, vec3 b, float r) {
@@ -91,15 +113,24 @@ float sdSphere(vec3 p, float s) {
     return length(p) - s;
 }
 
+float sdPlane(vec3 p, float y) {
+    return p.y - y + sin(p.x / 4) + sin(p.z / 4);
+}
+
 float sdScene(vec3 p) {
     float sphereDist = sdSphere(p / 1.2, 1.0) * 1.2;
-    vec3 cubePoint =
-        (rotateY(sin(iTime)) * rotateX(cos(iTime)) * rotateZ(sin(iTime)) *
-         vec4(p.x, p.y + sin(iTime), p.z, 1.0))
-            .xyz;
+    // vec3 cubePoint =
+    //     (rotateY(sin(iTime)) * rotateX(cos(iTime)) * rotateZ(sin(iTime)) *
+    //      vec4(p.x, p.y + sin(iTime), p.z, 1.0))
+    //         .xyz;
 
-    float cubeDist = sdBoxFrame(cubePoint, vec3(1.0), 0.25);
-    return sdIntersect(cubeDist, sphereDist);
+    // float cubeDist = sdBoxFrame(cubePoint, vec3(1.0), 0.25);
+    // vec3 cubePoint = (tRotateY(sin(0.5)) * tRotateX(cos(0.5)) *
+    //                   tRotateZ(sin(0.5)) * vec4(p, 1.0))
+    //                      .xyz;
+    // float cubeDist = sdBoxFrame(opTwist(p, sin(iTime) * 3), vec3(1.0), 0.25);
+    float cubeDist = sdBoxFrame(opRep(p, 4.0), vec3(1.0), 0.1);
+    return opUnion(sdPlane(p, -5.0), cubeDist);
 }
 
 vec3 estimateNormal(vec3 p) {
@@ -202,14 +233,14 @@ vec3 phongIllumination(vec3 k_a, vec3 k_d, vec3 k_s, float alpha, vec3 p,
     const vec3 ambientLight = 0.3 * vec3(1.0, 1.0, 1.0);
     vec3 color = ambientLight * k_a;
 
-    vec3 light1Pos = vec3(4.0 * sin(iTime), 2.0, 4.0 * cos(iTime));
+    vec3 light1Pos = vec3(camera.x + 4.0 * sin(iTime), camera.y + 2.0, camera.z + 4.0 * cos(iTime));
     vec3 light1Intensity = vec3(0.4, 0.4, 0.4);
 
     color += phongContribForLight(k_d, k_s, alpha, p, camera, light1Pos,
                                   light1Intensity);
 
     vec3 light2Pos =
-        vec3(2.0 * sin(0.37 * iTime), 2.0 * cos(0.37 * iTime), 2.0);
+        vec3(camera.x + 2.0 * sin(0.37 * iTime), camera.y + 2.0 * cos(0.37 * iTime), camera.z + 2.0);
     vec3 light2Intensity = vec3(0.4, 0.4, 0.4);
 
     color += phongContribForLight(k_d, k_s, alpha, p, camera, light2Pos,
@@ -241,10 +272,15 @@ float shortestDistanceToSurface(vec3 camera, vec3 marchingDirection,
 
 void main() {
     vec3 viewDir = rayDirection(FOV, iResolution, gl_FragCoord.xy);
-    // vec3 camera = vec3(8.0 + 4 * sin(iTime), 5.0 + 4 * cos(iTime), 7.0);
-    vec3 camera = vec3(8.0, 5.0, 7.0);
+    // vec3 camera = vec3(20 * cos(iTime / 10), 0.0, 20 * sin(iTime / 10));
+    vec3 camera = vec3(0.0, 10 + 10 * cos(iTime / 10), iTime);
+    vec3 target = vec3(
+        camera.x + 20 * cos(iTime / 10),
+        camera.y + 0.0,
+        camera.z + 20 * sin(iTime / 10)
+    );
 
-    mat4 viewToWorld = lookAt(camera, vec3(0.0, 0.0, 0.0), vec3(0.0, 1.0, 0.0));
+    mat4 viewToWorld = lookAt(camera, target, vec3(0.0, 1.0, 0.0));
 
     vec3 worldDir = (viewToWorld * vec4(viewDir, 0.0)).xyz;
 

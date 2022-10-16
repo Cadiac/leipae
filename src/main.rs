@@ -12,7 +12,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let event_loop = glutin::event_loop::EventLoop::new();
     let window = glutin::window::WindowBuilder::new()
         .with_title("demohäsä")
-        .with_inner_size(glutin::dpi::LogicalSize::new(800.0f32, 800.0f32));
+        .with_inner_size(glutin::dpi::LogicalSize::new(1600.0f32, 900.0f32));
 
     let gl_window = glutin::ContextBuilder::new()
         .with_gl(glutin::GlRequest::Specific(glutin::Api::OpenGl, (3, 3)))

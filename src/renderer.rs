@@ -83,7 +83,7 @@ impl Renderer {
 
             self.program.activate();
             self.program.set_uniform_f32("iTime", t);
-            self.program.set_uniform2_f32("iResolution", 800.0, 800.0);
+            self.program.set_uniform2_f32("iResolution", 1600.0, 900.0);
 
             gl::BindVertexArray(self.vao);
             gl::DrawArrays(gl::TRIANGLE_STRIP, 0, 4);
