@@ -15,22 +15,24 @@ static VERTICES: [GLfloat; 12] = [
     1.0,  1.0, 0.0,
 ];
 
+static VS_PATH: &str = "./src/shaders/vertex.glsl";
+static FS_PATH: &str = "./src/shaders/fragment.glsl";
+const VERTEX_SHADER: &str = include_str!("shaders/vertex.glsl");
+const FRAGMENT_SHADER: &str = include_str!("shaders/fragment.glsl");
+
 #[derive(Debug)]
 pub struct Renderer {
+    width: f32,
+    height: f32,
     program: ShaderProgram,
     vao: GLuint,
     vbo: GLuint,
-    vs_path: &'static str,
-    fs_path: &'static str,
 }
 
 impl Renderer {
-    pub fn new(
-        vs_path: &'static str,
-        fs_path: &'static str,
-    ) -> Result<Self, Box<dyn Error>> {
-        let vs = Shader::from_file(vs_path, gl::VERTEX_SHADER)?;
-        let fs = Shader::from_file(fs_path, gl::FRAGMENT_SHADER)?;
+    pub fn new(width: f32, height: f32) -> Result<Self, Box<dyn Error>> {
+        let vs = Shader::new(VERTEX_SHADER, gl::VERTEX_SHADER)?;
+        let fs = Shader::new(FRAGMENT_SHADER, gl::FRAGMENT_SHADER)?;
 
         let program = ShaderProgram::new(vs, fs);
 
@@ -54,6 +56,7 @@ impl Renderer {
             );
 
             program.activate();
+            program.set_uniform2_f32("iResolution", width, height);
 
             // Define vertex data layout, only position
             gl::VertexAttribPointer(
@@ -72,36 +75,41 @@ impl Renderer {
         }
 
         return Ok(Self {
+            width,
+            height,
             vao,
             vbo,
             program,
-            vs_path,
-            fs_path,
         });
     }
 
     pub fn reload(&mut self) -> Result<(), Box<dyn Error>> {
-        let vs = Shader::from_file(self.vs_path, gl::VERTEX_SHADER)?;
-        let fs = Shader::from_file(self.fs_path, gl::FRAGMENT_SHADER)?;
+        let vs = Shader::from_file(VS_PATH, gl::VERTEX_SHADER)?;
+        let fs = Shader::from_file(FS_PATH, gl::FRAGMENT_SHADER)?;
 
         self.program = ShaderProgram::new(vs, fs);
 
         Ok(())
     }
 
-    pub fn draw(&self, t: f32) {
-        unsafe {
-            gl::ClearColor(0.0, 0.0, 0.0, 1.0);
-            gl::Clear(gl::COLOR_BUFFER_BIT);
+    pub unsafe fn resize(&mut self, width: u32, height: u32) {
+        self.width = width as f32;
+        self.height = height as f32;
 
-            self.program.activate();
-            self.program.set_uniform_f32("iTime", t);
-            self.program.set_uniform2_f32("iResolution", 1600.0, 900.0);
+        self.program.activate();
+        self.program.set_uniform2_f32("iResolution", self.width, self.height);
+    }
 
-            gl::BindVertexArray(self.vao);
-            gl::DrawArrays(gl::TRIANGLE_STRIP, 0, 4);
-            gl::BindVertexArray(0);
-        }
+    pub unsafe fn draw(&self, t: f32) {
+        gl::ClearColor(0.0, 0.0, 0.0, 1.0);
+        gl::Clear(gl::COLOR_BUFFER_BIT);
+
+        self.program.activate();
+        self.program.set_uniform_f32("iTime", t);
+
+        gl::BindVertexArray(self.vao);
+        gl::DrawArrays(gl::TRIANGLE_STRIP, 0, 4);
+        gl::BindVertexArray(0);
     }
 }
 

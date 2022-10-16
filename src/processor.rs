@@ -26,7 +26,6 @@ impl EventProcessor {
         gl_window: ContextWrapper<PossiblyCurrent, Window>,
         mut renderer: Renderer,
     ) -> Result<(), Box<dyn Error>> {
-        let last_frame = SystemTime::now();
         let epoch = SystemTime::now();
 
         let exit_code = event_loop.run_return(move |event, _, control_flow| {
@@ -46,7 +45,7 @@ impl EventProcessor {
                         Some(VirtualKeyCode::Escape) => {
                             *control_flow = ControlFlow::Exit
                         }
-                        Some(VirtualKeyCode::R) => {
+                        Some(VirtualKeyCode::L) => {
                             renderer.reload().unwrap();
                         }
                         Some(key_code) => {
@@ -63,6 +62,7 @@ impl EventProcessor {
                         if size.width != 0 && size.height != 0 {
                             gl_window.resize(size);
                             unsafe {
+                                renderer.resize(size.width, size.height);
                                 gl::Viewport(0, 0, size.width as i32, size.height as i32);
                             }
                         }
@@ -70,10 +70,12 @@ impl EventProcessor {
                     _ => (),
                 },
                 Event::NewEvents(StartCause::Poll) | Event::RedrawRequested(_) => {
-                    let _dt = last_frame.elapsed().unwrap().as_secs_f32();
                     let t = epoch.elapsed().unwrap().as_secs_f32();
 
-                    renderer.draw(t);
+                    unsafe {
+                        renderer.draw(t);
+                    }
+
                     gl_window.swap_buffers().unwrap();
                 }
                 _ => (),

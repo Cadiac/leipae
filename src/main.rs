@@ -8,11 +8,14 @@ pub mod program;
 pub mod renderer;
 pub mod shader;
 
+const WIDTH: f32 = 640.0;
+const HEIGHT: f32 = 360.0;
+
 fn main() -> Result<(), Box<dyn Error>> {
     let event_loop = glutin::event_loop::EventLoop::new();
     let window = glutin::window::WindowBuilder::new()
         .with_title("demohäsä")
-        .with_inner_size(glutin::dpi::LogicalSize::new(1600.0f32, 900.0f32));
+        .with_inner_size(glutin::dpi::LogicalSize::new(WIDTH, HEIGHT));
 
     let gl_window = glutin::ContextBuilder::new()
         .with_gl(glutin::GlRequest::Specific(glutin::Api::OpenGl, (3, 3)))
@@ -24,10 +27,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     gl::load_with(|symbol| gl_window.get_proc_address(symbol));
 
-    let renderer = Renderer::new(
-        "src/shaders/vertex.glsl",
-        "src/shaders/fragment.glsl",
-    )?;
+    let renderer = Renderer::new(WIDTH, HEIGHT)?;
 
     let mut processor = EventProcessor::new();
 

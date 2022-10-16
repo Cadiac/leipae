@@ -359,8 +359,7 @@ void main() {
     // The closest point on the surface to the eyepoint along the view ray
     vec3 p = camera + dist * worldDir;
 
-    // vec3 K_a = vec3(estimateNormal(p) + vec3(1.0)) / 2;
-    vec3 K_a = vec3(1.0, 0.7, 0.0);
+    vec3 K_a = vec3(estimateNormal(p) + vec3(1.0)) / 2;
     vec3 K_d = K_a;
     vec3 K_s = vec3(0.2, 0.2, 0.2);
     float shininess = 10.0;
