@@ -15,8 +15,6 @@ static VERTICES: [GLfloat; 12] = [
     1.0,  1.0, 0.0,
 ];
 
-static VS_PATH: &str = "./src/shaders/vertex.glsl";
-static FS_PATH: &str = "./src/shaders/fragment.glsl";
 const VERTEX_SHADER: &str = include_str!("shaders/vertex.glsl");
 const FRAGMENT_SHADER: &str = include_str!("shaders/fragment.glsl");
 
@@ -83,11 +81,15 @@ impl Renderer {
         });
     }
 
-    pub fn reload(&mut self) -> Result<(), Box<dyn Error>> {
-        let vs = Shader::from_file(VS_PATH, gl::VERTEX_SHADER)?;
-        let fs = Shader::from_file(FS_PATH, gl::FRAGMENT_SHADER)?;
+    pub unsafe fn reload(&mut self) -> Result<(), Box<dyn Error>> {
+        let vs = Shader::from_file("src/shaders/vertex.glsl", gl::VERTEX_SHADER)?;
+        let fs = Shader::from_file("src/shaders/fragment.glsl", gl::FRAGMENT_SHADER)?;
 
         self.program = ShaderProgram::new(vs, fs);
+        unsafe {
+            self.program.activate();
+            self.program.set_uniform2_f32("iResolution", self.width, self.height);
+        }
 
         Ok(())
     }

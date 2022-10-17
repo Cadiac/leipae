@@ -1,16 +1,17 @@
-use glutin::event::{Event, StartCause, WindowEvent, VirtualKeyCode};
-use glutin::event_loop::{ControlFlow, EventLoop};
-use glutin::platform::run_return::EventLoopExtRunReturn;
-use glutin::window::Window;
-use glutin::{ContextWrapper, PossiblyCurrent};
 use std::collections::HashSet;
 use std::error::Error;
 use std::time::SystemTime;
 
+use glutin::event::{Event, StartCause, VirtualKeyCode, WindowEvent};
+use glutin::event_loop::{ControlFlow, EventLoop};
+use glutin::platform::run_return::EventLoopExtRunReturn;
+use glutin::window::Window;
+use glutin::{ContextWrapper, PossiblyCurrent};
+
 use crate::renderer::Renderer;
 
 pub struct EventProcessor {
-    keys_held: HashSet<VirtualKeyCode>
+    keys_held: HashSet<VirtualKeyCode>,
 }
 
 impl EventProcessor {
@@ -42,11 +43,9 @@ impl EventProcessor {
                         device_id: _,
                         is_synthetic: _,
                     } => match input.virtual_keycode {
-                        Some(VirtualKeyCode::Escape) => {
-                            *control_flow = ControlFlow::Exit
-                        }
-                        Some(VirtualKeyCode::L) => {
-                            renderer.reload().unwrap();
+                        Some(VirtualKeyCode::Escape) => *control_flow = ControlFlow::Exit,
+                        Some(VirtualKeyCode::R) => {
+                            unsafe { renderer.reload().unwrap() };
                         }
                         Some(key_code) => {
                             if input.state == glutin::event::ElementState::Pressed {

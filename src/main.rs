@@ -9,7 +9,7 @@ pub mod renderer;
 pub mod shader;
 
 const WIDTH: f32 = 640.0;
-const HEIGHT: f32 = 360.0;
+const HEIGHT: f32 = 640.0;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let event_loop = glutin::event_loop::EventLoop::new();

@@ -157,7 +157,7 @@ float sdLeipae(vec3 p) {
                           (0.01 * noise(p.xz * 30));
 
     float dist = ellipsoidDist;
-    for (int i = -3; i <= 3; ++i) {
+    for (int i = -3; i <= 3; i++) {
         float offsetY = 1.9;
         if (i == -2 || i == 2) {
             offsetY = 1.7;
@@ -191,7 +191,7 @@ float sdScene(vec3 p) {
     // float cubeDist = sdBoxFrame(p, vec3(1.0), 0.1);
     float leipaeDist = sdLeipae(p);
 
-    return opUnion(sdPlane(p, -5.0), leipaeDist);
+    return opUnion(sdPlane(p, -3.0), leipaeDist);
 }
 
 vec3 estimateNormal(vec3 p) {
@@ -332,9 +332,41 @@ float shortestDistanceToSurface(vec3 camera, vec3 marchingDirection,
     return end;
 }
 
+float shadows(vec3 sunDir, vec3 p) {
+    // We don't really know where sun is, but lets say its 100 units away in sunDir.
+    // March p towards the sun, and see if we get far enough
+    // TODO: March from sun towards the spot and see if we hit it, should be faster maybe?
+    float sunDist = 100.0;
+
+    float depth = 1.0;
+    for (int i = 0; i < 32; i++) {
+        float dist = sdScene(p + depth * sunDir);
+        if (dist < EPSILON) {
+            return 0.0;
+        }
+        depth += dist;
+        if (depth >= sunDist) {
+            return 1.0;
+        }
+    }
+    return 1.0;
+}
+
+vec3 illumination(vec3 sun, vec3 p, vec3 camera) {
+    vec3 n = estimateNormal(p);
+
+    float dotSN = dot(n, sun);
+    if (dotSN < 0) {
+        return vec3(0.0);
+    }
+
+    vec3 sunColor = vec3(0.87, 0.65, 0.59);
+    return sunColor * dotSN * shadows(sun, p);
+}
+
 void main() {
     vec3 viewDir = rayDirection(FOV, iResolution, gl_FragCoord.xy);
-    vec3 camera = vec3(20 * cos(iTime / 10), 10.0, 20 * sin(iTime / 10));
+    vec3 camera = vec3(30 * cos(iTime / 10), 15.0, 30 * sin(iTime / 10));
     vec3 target = vec3(0);
 
     // vec3 camera = vec3(0.0, 10 + 10 * cos(iTime / 10), iTime);
@@ -358,13 +390,18 @@ void main() {
 
     // The closest point on the surface to the eyepoint along the view ray
     vec3 p = camera + dist * worldDir;
+    
+    // vec3 n = estimateNormal(p);
+    // vec3 K_a = n;
+    // vec3 K_d = smoothstep(0.6, 0.7, n.y) * vec3(1.0, 1.0, 1.0);
+    // vec3 K_s = smoothstep(0.6, 0.7, n.y) * vec3(1.0, 1.0, 1.0);
+    // vec3 K_d = K_a;
+    // vec3 K_s = vec3(1.0);
+    // float shininess = 100.0;
+    // vec3 color = phongIllumination(K_a, K_d, K_s, shininess, p, camera);
 
-    vec3 K_a = vec3(estimateNormal(p) + vec3(1.0)) / 2;
-    vec3 K_d = K_a;
-    vec3 K_s = vec3(0.2, 0.2, 0.2);
-    float shininess = 10.0;
-
-    vec3 color = phongIllumination(K_a, K_d, K_s, shininess, p, camera);
+    vec3 sun = normalize(vec3(2.0, 4.0, 3.0));
+    vec3 color = illumination(sun, p, camera);
 
     FragColor = vec4(color, 1.0);
 }
