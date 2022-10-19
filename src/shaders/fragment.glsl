@@ -335,10 +335,9 @@ float shortestDistanceToSurface(vec3 camera, vec3 marchingDirection,
 float shadows(vec3 sunDir, vec3 p) {
     // We don't really know where sun is, but lets say its 100 units away in sunDir.
     // March p towards the sun, and see if we get far enough
-    // TODO: March from sun towards the spot and see if we hit it, should be faster maybe?
-    float sunDist = 100.0;
+    float sunDist = MAX_DIST;
 
-    float depth = 1.0;
+    float depth = 0.1;
     for (int i = 0; i < 32; i++) {
         float dist = sdScene(p + depth * sunDir);
         if (dist < EPSILON) {
