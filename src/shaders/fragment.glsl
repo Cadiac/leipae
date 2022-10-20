@@ -200,11 +200,14 @@ float valuenoise(in vec2 x) {
  * Fractional Brownian Motion from noise
  */
 float fbm(in vec2 x, in float H, int octaves) {
+    float G = exp2(-H);
+    float f = 1.0;
+    float a = 1.0;
     float t = 0.0;
     for (int i = 0; i < octaves; i++) {
-        float f = pow(2.0, float(i));
-        float a = pow(f, -H);
-        t += a * valuenoise(f * x);
+        t += a * noise(f * x);
+        f *= 2.0;
+        a *= G;
     }
     return t;
 }
@@ -392,23 +395,34 @@ float rayMarch(vec3 camera, vec3 marchingDirection, float start, float end) {
     return end;
 }
 
-float shadows(vec3 sunDir, vec3 p) {
-    // We don't really know where sun is, but lets say its 100 units away in
-    // sunDir. March p towards the sun, and see if we get far enough
-    float sunDist = MAX_DIST;
-
-    float depth = 1.0;
-    for (int i = 0; i < 255; i++) {
+float shadows(in vec3 sunDir, in vec3 p) {
+    // We don't really know where sun is, but lets say its MAX_DIST units away
+    // in sunDir. March p towards the sun, and see if we get far enough
+    for (float depth = 1.0; depth < MAX_DIST;) {
         float dist = sdScene(p + depth * sunDir);
         if (dist < EPSILON) {
             return 0.0;
         }
         depth += dist;
-        if (depth >= sunDist) {
-            return 1.0;
-        }
     }
     return 1.0;
+}
+
+/**
+ * Derived from: https://iquilezles.org/articles/rmshadows/
+ * Soft shadows, k controls softness
+ */
+float softShadows(in vec3 sunDir, in vec3 p, float k) {
+    float opacity = 1.0;
+    for (float depth = 1.0; depth < MAX_DIST;) {
+        float dist = sdScene(p + depth * sunDir);
+        if (dist < EPSILON) {
+            return 0.0;
+        }
+        opacity = min(opacity, k * dist / depth);
+        depth += dist;
+    }
+    return opacity;
 }
 
 vec3 illumination(vec3 sun, vec3 p, vec3 camera) {
@@ -420,7 +434,7 @@ vec3 illumination(vec3 sun, vec3 p, vec3 camera) {
     }
 
     vec3 sunColor = vec3(0.87, 0.65, 0.59);
-    return sunColor * dotSN * shadows(sun, p);
+    return sunColor * dotSN * softShadows(sun, p, 4.0);
 }
 
 void main() {
