@@ -8,9 +8,10 @@ uniform float iTime;
 
 const int MAX_MARCHING_STEPS = 255;
 const float MIN_DIST = 0.0;
-const float MAX_DIST = 100.0;
+const float MAX_DIST = 250.0;
 const float FOV = 45.0;
-const float EPSILON = 0.0001;
+const float EPSILON = 0.00001;
+const float PI = 3.14159265;
 
 float dot2(in vec2 v) {
     return dot(v, v);
@@ -100,6 +101,11 @@ vec3 opRepLim(vec3 p, float c, vec3 l) {
     return p - c * clamp(round(p / c), -l, l);
 }
 
+/**
+ * Derived from: https://iquilezles.org/articles/distfunctions/
+ * SDF primitive distance functions
+ */
+
 float sdRoundBox(vec3 p, vec3 b, float r) {
     vec3 q = abs(p) - b;
     return length(max(q, 0.0)) + min(max(q.x, max(q.y, q.z)), 0.0) - r;
@@ -151,6 +157,58 @@ float sdTriPrism(vec3 p, vec2 h) {
     return max(q.z - h.y, max(q.x * 0.866025 + p.y * 0.5, -p.y) - h.x * 0.5);
 }
 
+/**
+ * Derived from: https://iquilezles.org/articles/morenoise/
+ * Vector hash function, unsafe for security use
+ */
+float hash(vec2 x) {
+    vec2 integer = floor(x);
+    vec2 fractional = fract(x);
+
+    vec2 u =
+        3 * fractional * fractional - 2 * fractional * fractional * fractional;
+
+    vec2 ua = 50.0 * fract(x / PI);
+    return 2.0 * fract(ua.x * ua.y * (ua.x + ua.y)) - 1.0;
+}
+
+/**
+ * Derived from: https://iquilezles.org/articles/morenoise/
+ * Value noise generator
+ */
+float valuenoise(in vec2 x) {
+    vec2 integer = floor(x);
+    vec2 fractional = fract(x);
+
+    vec2 u = fractional * fractional * (3.0 - 2.0 * fractional);
+
+    float a = hash(integer + vec2(0, 0));
+    float b = hash(integer + vec2(1, 0));
+    float c = hash(integer + vec2(0, 1));
+    float d = hash(integer + vec2(1, 1));
+
+    float k0 = a;
+    float k1 = b - a;
+    float k2 = c - a;
+    float k4 = a - b - c + d;
+
+    return 0.0 + 1.0 * (k0 + k1 * u.x + k2 * u.y + k4 * u.x * u.y);
+}
+
+/**
+ * Derived from: https://iquilezles.org/articles/fbm/
+ * Fractional Brownian Motion from noise
+ */
+float fbm(in vec2 x, in float H, int octaves) {
+    float t = 0.0;
+    for (int i = 0; i < octaves; i++) {
+        float f = pow(2.0, float(i));
+        float a = pow(f, -H);
+        t += a * valuenoise(f * x);
+    }
+    return t;
+}
+
 float sdLeipae(vec3 p) {
     float ellipsoidDist = sdEllipsoid(opBend(p, -0.03), vec3(5.0, 1.0, 1.5)) -
                           0.25 + (0.05 * noise(p.xz * 5)) +
@@ -168,7 +226,8 @@ float sdLeipae(vec3 p) {
         float wedge = sdTriPrism((tRotateZ(1.0) * tRotateY(0.3) *
                                   vec4(p.x + i * 1.1, p.y - offsetY, p.z, 1.0))
                                      .xyz,
-                                 vec2(1.0, 2.0)) + (0.03 * noise(p.xz * 10));
+                                 vec2(1.0, 2.0)) +
+                      (0.03 * noise(p.xz * 10));
 
         dist = opDifference(dist, wedge);
     }
@@ -189,9 +248,11 @@ float sdScene(vec3 p) {
     //                      .xyz;
     // float cubeDist = sdBoxFrame(opTwist(p, sin(iTime) * 3), vec3(1.0), 0.25);
     // float cubeDist = sdBoxFrame(p, vec3(1.0), 0.1);
-    float leipaeDist = sdLeipae(p);
 
-    return opUnion(sdPlane(p, -3.0), leipaeDist);
+    // return opUnion(sdTerrain(p, sin(f.x), cos(f.x), sin(f.z), cos(f.z)),
+    // sdLeipae(p));
+    return opUnion((p.y + 6 - 3 * fbm(p.xz / 20 + vec2(-2.0, 2.0), 0.40, 4)),
+                   sdLeipae(p));
 }
 
 vec3 estimateNormal(vec3 p) {
@@ -316,8 +377,7 @@ vec3 rayDirection(float fov, vec2 dimensions, vec2 fragCoord) {
     return normalize(vec3(xy, -z));
 }
 
-float shortestDistanceToSurface(vec3 camera, vec3 marchingDirection,
-                                float start, float end) {
+float rayMarch(vec3 camera, vec3 marchingDirection, float start, float end) {
     float depth = start;
     for (int i = 0; i < MAX_MARCHING_STEPS; i++) {
         float dist = sdScene(camera + depth * marchingDirection);
@@ -333,12 +393,12 @@ float shortestDistanceToSurface(vec3 camera, vec3 marchingDirection,
 }
 
 float shadows(vec3 sunDir, vec3 p) {
-    // We don't really know where sun is, but lets say its 100 units away in sunDir.
-    // March p towards the sun, and see if we get far enough
+    // We don't really know where sun is, but lets say its 100 units away in
+    // sunDir. March p towards the sun, and see if we get far enough
     float sunDist = MAX_DIST;
 
-    float depth = 0.1;
-    for (int i = 0; i < 32; i++) {
+    float depth = 1.0;
+    for (int i = 0; i < 255; i++) {
         float dist = sdScene(p + depth * sunDir);
         if (dist < EPSILON) {
             return 0.0;
@@ -365,8 +425,10 @@ vec3 illumination(vec3 sun, vec3 p, vec3 camera) {
 
 void main() {
     vec3 viewDir = rayDirection(FOV, iResolution, gl_FragCoord.xy);
-    vec3 camera = vec3(30 * cos(iTime / 10), 15.0, 30 * sin(iTime / 10));
-    vec3 target = vec3(0);
+    vec3 camera = vec3(20 * cos(iTime / 10), 4, 20 * sin(iTime / 10));
+    // vec3 camera = vec3(30, 4, 30);
+
+    vec3 target = vec3(0, 0, 0);
 
     // vec3 camera = vec3(0.0, 10 + 10 * cos(iTime / 10), iTime);
     // vec3 target = vec3(
@@ -379,8 +441,7 @@ void main() {
 
     vec3 worldDir = (viewToWorld * vec4(viewDir, 0.0)).xyz;
 
-    float dist =
-        shortestDistanceToSurface(camera, worldDir, MIN_DIST, MAX_DIST);
+    float dist = rayMarch(camera, worldDir, MIN_DIST, MAX_DIST);
 
     if (dist > MAX_DIST - EPSILON) {
         FragColor = vec4(0.0, 0.0, 0.0, 0.0);
@@ -389,18 +450,19 @@ void main() {
 
     // The closest point on the surface to the eyepoint along the view ray
     vec3 p = camera + dist * worldDir;
-    
-    // vec3 n = estimateNormal(p);
+
+    vec3 n = estimateNormal(p);
     // vec3 K_a = n;
     // vec3 K_d = smoothstep(0.6, 0.7, n.y) * vec3(1.0, 1.0, 1.0);
     // vec3 K_s = smoothstep(0.6, 0.7, n.y) * vec3(1.0, 1.0, 1.0);
+    // vec3 K_a = vec3(0.4, 0.3, 0.2);
     // vec3 K_d = K_a;
     // vec3 K_s = vec3(1.0);
     // float shininess = 100.0;
     // vec3 color = phongIllumination(K_a, K_d, K_s, shininess, p, camera);
 
-    vec3 sun = normalize(vec3(2.0, 4.0, 3.0));
-    vec3 color = illumination(sun, p, camera);
+    vec3 sun = normalize(vec3(2.0, 4.0 + 4.0 * sin(iTime / 10), 3.0));
+    vec3 color = vec3(0.1, 0.05, 0.05) + illumination(sun, p, camera);
 
     FragColor = vec4(color, 1.0);
 }
