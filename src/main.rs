@@ -8,8 +8,8 @@ pub mod program;
 pub mod renderer;
 pub mod shader;
 
-const WIDTH: f32 = 640.0;
-const HEIGHT: f32 = 640.0;
+const WIDTH: f32 = 1600.0;
+const HEIGHT: f32 = 900.0;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let event_loop = glutin::event_loop::EventLoop::new();

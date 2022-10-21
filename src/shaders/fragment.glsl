@@ -212,7 +212,7 @@ float fbm(in vec2 x, in float H, int octaves) {
     return t;
 }
 
-float sdLeipae(vec3 p) {
+float sdLeipae(in vec3 p) {
     float ellipsoidDist = sdEllipsoid(opBend(p, -0.03), vec3(5.0, 1.0, 1.5)) -
                           0.25 + (0.05 * noise(p.xz * 5)) +
                           (0.01 * noise(p.xz * 30));
@@ -253,10 +253,9 @@ float sdScene(vec3 p) {
     // float cubeDist = sdBoxFrame(p, vec3(1.0), 0.1);
 
     // return opUnion(sdTerrain(p, sin(f.x), cos(f.x), sin(f.z), cos(f.z)),
-    // sdLeipae(p));
 
     float terrainDist = p.y - fbm(p.xz + vec2(-1.0, 2.0), 1.5, 8) + 4;
-    return opUnion(terrainDist, sdLeipae(p));
+    return opUnion(terrainDist, sdLeipae(vec3(p.x, p.y + 2.0, p.z)));
 }
 
 vec3 estimateNormal(vec3 p) {
@@ -438,16 +437,15 @@ vec3 illumination(vec3 sun, vec3 p, vec3 camera) {
     return sunColor * dotSN * softShadows(sun, p, 4.0);
 }
 
-vec3 fog( in vec3 color, float dist ) {
+vec3 fog(in vec3 color, float dist) {
     vec3 e = exp2(-dist * 0.010 * vec3(1.0, 2.0, 4.0));
-
     return color * e + (1.0 - e) * vec3(1.0);
 }
 
 void main() {
     vec3 viewDir = rayDirection(FOV, iResolution, gl_FragCoord.xy);
     // vec3 camera = vec3(20 * cos(iTime / 10), 4, 20 * sin(iTime / 10));
-    vec3 camera = vec3(0, -2, 0);
+    vec3 camera = vec3(10 * cos(iTime / 10), -2, 10 * sin(iTime / 10));
     vec3 target = vec3(2, -3, 5);
 
     // vec3 camera = vec3(0.0, 10 + 10 * cos(iTime / 10), iTime);
@@ -480,13 +478,13 @@ void main() {
     // float shininess = 100.0;
     // vec3 color = phongIllumination(K_a, K_d, K_s, shininess, p, camera);
 
-    vec3 sun = normalize(vec3(2.0, 2.5, 3.0));
+    vec3 sun = normalize(vec3(4.0, 2.5, 5.0));
     vec3 color = illumination(sun, p, camera);
     color = fog(color, dist);
 
-    color = pow( color, vec3(1.0,0.92,1.0) );   // soft green
-    color *= vec3(1.02,0.99,0.9 );            // tint red
-    color.z = color.z+0.1;                      // bias blue
+    color = pow(color, vec3(1.0, 0.92, 1.0)); // soft green
+    color *= vec3(1.02, 0.99, 0.9);           // tint red
+    color.z = color.z + 0.1;                  // bias blue
 
     FragColor = vec4(color, 1.0);
 }
