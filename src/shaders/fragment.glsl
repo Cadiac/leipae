@@ -202,11 +202,11 @@ float valuenoise(in vec2 x) {
 float fbm(in vec2 x, in float H, int octaves) {
     float G = exp2(-H);
     float f = 1.0;
-    float a = 1.0;
+    float a = 0.5;
     float t = 0.0;
     for (int i = 0; i < octaves; i++) {
         t += a * noise(f * x);
-        f *= 2.0;
+        f *= 1.9;
         a *= G;
     }
     return t;
@@ -254,8 +254,9 @@ float sdScene(vec3 p) {
 
     // return opUnion(sdTerrain(p, sin(f.x), cos(f.x), sin(f.z), cos(f.z)),
     // sdLeipae(p));
-    return opUnion((p.y + 6 - 3 * fbm(p.xz / 20 + vec2(-2.0, 2.0), 0.40, 4)),
-                   sdLeipae(p));
+
+    float terrainDist = p.y - fbm(p.xz + vec2(-1.0, 2.0), 1.5, 8) + 4;
+    return opUnion(terrainDist, sdLeipae(p));
 }
 
 vec3 estimateNormal(vec3 p) {
@@ -384,15 +385,15 @@ float rayMarch(vec3 camera, vec3 marchingDirection, float start, float end) {
     float depth = start;
     for (int i = 0; i < MAX_MARCHING_STEPS; i++) {
         float dist = sdScene(camera + depth * marchingDirection);
-        if (dist < EPSILON) {
+        if (dist < i * 0.001) {
             return depth;
         }
         depth += dist;
         if (depth >= end) {
-            return end;
+            return -1.0;
         }
     }
-    return end;
+    return -1.0;
 }
 
 float shadows(in vec3 sunDir, in vec3 p) {
@@ -437,12 +438,17 @@ vec3 illumination(vec3 sun, vec3 p, vec3 camera) {
     return sunColor * dotSN * softShadows(sun, p, 4.0);
 }
 
+vec3 fog( in vec3 color, float dist ) {
+    vec3 e = exp2(-dist * 0.010 * vec3(1.0, 2.0, 4.0));
+
+    return color * e + (1.0 - e) * vec3(1.0);
+}
+
 void main() {
     vec3 viewDir = rayDirection(FOV, iResolution, gl_FragCoord.xy);
-    vec3 camera = vec3(20 * cos(iTime / 10), 4, 20 * sin(iTime / 10));
-    // vec3 camera = vec3(30, 4, 30);
-
-    vec3 target = vec3(0, 0, 0);
+    // vec3 camera = vec3(20 * cos(iTime / 10), 4, 20 * sin(iTime / 10));
+    vec3 camera = vec3(0, -2, 0);
+    vec3 target = vec3(2, -3, 5);
 
     // vec3 camera = vec3(0.0, 10 + 10 * cos(iTime / 10), iTime);
     // vec3 target = vec3(
@@ -456,16 +462,15 @@ void main() {
     vec3 worldDir = (viewToWorld * vec4(viewDir, 0.0)).xyz;
 
     float dist = rayMarch(camera, worldDir, MIN_DIST, MAX_DIST);
-
-    if (dist > MAX_DIST - EPSILON) {
-        FragColor = vec4(0.0, 0.0, 0.0, 0.0);
+    if (dist < 0.0) {
+        FragColor = vec4(1.0);
         return;
     }
 
     // The closest point on the surface to the eyepoint along the view ray
     vec3 p = camera + dist * worldDir;
 
-    vec3 n = estimateNormal(p);
+    // vec3 n = estimateNormal(p);
     // vec3 K_a = n;
     // vec3 K_d = smoothstep(0.6, 0.7, n.y) * vec3(1.0, 1.0, 1.0);
     // vec3 K_s = smoothstep(0.6, 0.7, n.y) * vec3(1.0, 1.0, 1.0);
@@ -475,8 +480,13 @@ void main() {
     // float shininess = 100.0;
     // vec3 color = phongIllumination(K_a, K_d, K_s, shininess, p, camera);
 
-    vec3 sun = normalize(vec3(2.0, 4.0 + 4.0 * sin(iTime / 10), 3.0));
-    vec3 color = vec3(0.1, 0.05, 0.05) + illumination(sun, p, camera);
+    vec3 sun = normalize(vec3(2.0, 2.5, 3.0));
+    vec3 color = illumination(sun, p, camera);
+    color = fog(color, dist);
+
+    color = pow( color, vec3(1.0,0.92,1.0) );   // soft green
+    color *= vec3(1.02,0.99,0.9 );            // tint red
+    color.z = color.z+0.1;                      // bias blue
 
     FragColor = vec4(color, 1.0);
 }
