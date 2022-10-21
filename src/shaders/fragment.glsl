@@ -137,7 +137,7 @@ float sdSphere(vec3 p, float s) {
 }
 
 float sdPlane(vec3 p, float y) {
-    return p.y - y + sin(p.x / 4) + sin(p.z / 4);
+    return p.y - y;
 }
 
 float sdEllipsoid(vec3 p, vec3 r) {
@@ -254,8 +254,10 @@ float sdScene(vec3 p) {
 
     // return opUnion(sdTerrain(p, sin(f.x), cos(f.x), sin(f.z), cos(f.z)),
 
-    float terrainDist = p.y - fbm(p.xz + vec2(-1.0, 2.0), 1.5, 8) + 4;
-    return opUnion(terrainDist, sdLeipae(vec3(p.x, p.y + 2.0, p.z)));
+    float terrain = p.y - fbm(p.xz + vec2(-1.0, 2.0), 1.5, 8) + 4;
+    float water = sdPlane(p, -3.9);
+    float leipae = sdLeipae(vec3(p.x, p.y + 2.0, p.z));
+    return opUnion(opUnion(terrain, leipae), water);
 }
 
 vec3 estimateNormal(vec3 p) {
