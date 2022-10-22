@@ -205,7 +205,7 @@ float fbm(in vec2 x, in float H, int octaves) {
     float a = 0.5;
     float t = 0.0;
     for (int i = 0; i < octaves; i++) {
-        t += a * noise(f * x);
+        t += a * valuenoise(f * x);
         f *= 1.9;
         a *= G;
     }
@@ -444,11 +444,19 @@ vec3 fog(in vec3 color, float dist) {
     return color * e + (1.0 - e) * vec3(1.0);
 }
 
+vec3 sky(in vec3 camera, in vec3 dir) {
+    vec3 color = vec3(0.30, 0.45, 0.68) - 0.4 * dir.y;
+    vec2 p = (camera + 2500.0 * dir).xy;
+    float clouds = smoothstep(0.1, 0.5, fbm(0.005 * p, 1.1, 8));
+
+    return color * (1 - clouds) + clouds;
+}
+
 void main() {
     vec3 viewDir = rayDirection(FOV, iResolution, gl_FragCoord.xy);
     // vec3 camera = vec3(20 * cos(iTime / 10), 4, 20 * sin(iTime / 10));
-    vec3 camera = vec3(10 * cos(iTime / 10), -2, 10 * sin(iTime / 10));
-    vec3 target = vec3(2, -3, 5);
+    vec3 camera = vec3(10 * cos(iTime / 10), -3.4, 10 * sin(iTime / 10));
+    vec3 target = vec3(2, -3.8 + 5 * sin(iTime / 10), 5);
 
     // vec3 camera = vec3(0.0, 10 + 10 * cos(iTime / 10), iTime);
     // vec3 target = vec3(
@@ -463,7 +471,8 @@ void main() {
 
     float dist = rayMarch(camera, worldDir, MIN_DIST, MAX_DIST);
     if (dist < 0.0) {
-        FragColor = vec4(1.0);
+        vec3 color = sky(camera, worldDir);
+        FragColor = vec4(color, 1.0);
         return;
     }
 
