@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use std::error::Error;
-use std::time::SystemTime;
+use std::ops::Sub;
+use std::time::{Duration, SystemTime};
 
 use glutin::event::{Event, StartCause, VirtualKeyCode, WindowEvent};
 use glutin::event_loop::{ControlFlow, EventLoop};
@@ -12,12 +13,18 @@ use crate::renderer::Renderer;
 
 pub struct EventProcessor {
     keys_held: HashSet<VirtualKeyCode>,
+    is_paused: bool,
+    elapsed: Duration,
+    epoch: SystemTime,
 }
 
 impl EventProcessor {
     pub fn new() -> Self {
         Self {
             keys_held: HashSet::new(),
+            is_paused: false,
+            elapsed: Duration::default(),
+            epoch: SystemTime::now(),
         }
     }
 
@@ -27,7 +34,7 @@ impl EventProcessor {
         gl_window: ContextWrapper<PossiblyCurrent, Window>,
         mut renderer: Renderer,
     ) -> Result<(), Box<dyn Error>> {
-        let epoch = SystemTime::now();
+        self.epoch = SystemTime::now();
 
         let exit_code = event_loop.run_return(move |event, _, control_flow| {
             *control_flow = ControlFlow::Poll;
@@ -46,6 +53,16 @@ impl EventProcessor {
                         Some(VirtualKeyCode::Escape) => *control_flow = ControlFlow::Exit,
                         Some(VirtualKeyCode::R) => {
                             unsafe { renderer.reload().unwrap() };
+                        }
+                        Some(VirtualKeyCode::T) => {
+                            self.epoch = SystemTime::now();
+                        }
+                        Some(VirtualKeyCode::P) => {
+                            self.is_paused = true;
+                        }
+                        Some(VirtualKeyCode::O) => {
+                            self.is_paused = false;
+                            self.epoch = SystemTime::now().sub(self.elapsed);
                         }
                         Some(key_code) => {
                             if input.state == glutin::event::ElementState::Pressed {
@@ -69,10 +86,12 @@ impl EventProcessor {
                     _ => (),
                 },
                 Event::NewEvents(StartCause::Poll) | Event::RedrawRequested(_) => {
-                    let t = epoch.elapsed().unwrap().as_secs_f32();
+                    if !self.is_paused {
+                        self.elapsed = self.epoch.elapsed().unwrap();
+                    }
 
                     unsafe {
-                        renderer.draw(t);
+                        renderer.draw(self.elapsed.as_secs_f32());
                     }
 
                     gl_window.swap_buffers().unwrap();

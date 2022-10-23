@@ -445,18 +445,33 @@ vec3 fog(in vec3 color, float dist) {
 }
 
 vec3 sky(in vec3 camera, in vec3 dir) {
+    // Deeper blue when looking up
     vec3 color = vec3(0.30, 0.45, 0.68) - 0.4 * dir.y;
-    vec2 p = (camera + 2500.0 * dir).xy;
-    float clouds = smoothstep(0.1, 0.5, fbm(0.005 * p, 1.1, 8));
 
-    return color * (1 - clouds) + clouds;
+    // Draw clouds on a plane at 2500 height
+    // "dir" is the normalized vector towards the plane with length of 1.
+    // To get the point on the plane figure out how many steps of "dir"s are
+    // needed for the y axel delta, and then multiply the whole dir by that.
+    float dist = (2500 - camera.y) / dir.y;
+    if (dist > 0.0 && dist < 100000) {
+        vec3 p = (camera + dist * dir);
+        float clouds = smoothstep(-0.3, 0.7, fbm(0.0005 * p.xz, 1.1, 9));
+        color = mix(color, vec3(1.0), 0.2 * clouds);
+    }
+
+    // Fade to white fog further away
+    vec3 e = exp2(-abs(dist) * 0.00001 * vec3(1.0, 2.0, 4.0));
+    color = color * e + (1.0 - e) * vec3(1.0);
+
+    return color;
 }
 
 void main() {
     vec3 viewDir = rayDirection(FOV, iResolution, gl_FragCoord.xy);
     // vec3 camera = vec3(20 * cos(iTime / 10), 4, 20 * sin(iTime / 10));
-    vec3 camera = vec3(10 * cos(iTime / 10), -3.4, 10 * sin(iTime / 10));
-    vec3 target = vec3(2, -3.8 + 5 * sin(iTime / 10), 5);
+    vec3 camera =
+        vec3(10.0 * cos(iTime / 10.0), -3.4, 10.0 * sin(iTime / 10.0));
+    vec3 target = vec3(2.0, -3.8 + 5.0 * sin(iTime / 10.0), 5.0);
 
     // vec3 camera = vec3(0.0, 10 + 10 * cos(iTime / 10), iTime);
     // vec3 target = vec3(
@@ -471,8 +486,7 @@ void main() {
 
     float dist = rayMarch(camera, worldDir, MIN_DIST, MAX_DIST);
     if (dist < 0.0) {
-        vec3 color = sky(camera, worldDir);
-        FragColor = vec4(color, 1.0);
+        FragColor = vec4(sky(camera, worldDir), 1.0);
         return;
     }
 
