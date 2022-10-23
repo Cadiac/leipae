@@ -241,25 +241,15 @@ float sdLeipae(in vec3 p) {
     return dist;
 }
 
-float sdScene(vec3 p) {
-    // float sphereDist = sdSphere(p / 1.2, 1.0) * 1.2;
-    // vec3 cubePoint =
-    //     (rotateY(sin(iTime)) * rotateX(cos(iTime)) * rotateZ(sin(iTime)) *
-    //      vec4(p.x, p.y + sin(iTime), p.z, 1.0))
-    //         .xyz;
+float sdTerrain(in vec3 p) {
+    return p.y - fbm(p.xz + vec2(-1.0, 2.0), 1.5, 8) + 4;
+}
 
-    // float cubeDist = sdBoxFrame(cubePoint, vec3(1.0), 0.25);
-    // vec3 cubePoint = (tRotateY(sin(0.5)) * tRotateX(cos(0.5)) *
-    //                   tRotateZ(sin(0.5)) * vec4(p, 1.0))
-    //                      .xyz;
-    // float cubeDist = sdBoxFrame(opTwist(p, sin(iTime) * 3), vec3(1.0), 0.25);
-    // float cubeDist = sdBoxFrame(p, vec3(1.0), 0.1);
-
-    // return opUnion(sdTerrain(p, sin(f.x), cos(f.x), sin(f.z), cos(f.z)),
-
-    float terrain = p.y - fbm(p.xz + vec2(-1.0, 2.0), 1.5, 8) + 4;
+float sdScene(in vec3 p) {
+    float terrain = sdTerrain(p);
     float water = sdPlane(p, -3.9);
     float leipae = sdLeipae(vec3(p.x, p.y + 2.0, p.z));
+
     return opUnion(opUnion(terrain, leipae), water);
 }
 
