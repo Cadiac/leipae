@@ -13,6 +13,9 @@ const float FOV = 45.0;
 const float EPSILON = 0.00001;
 const float PI = 3.14159265;
 
+const vec3 SUN_COLOR = vec3(0.87, 0.65, 0.59);
+const vec3 SKY_COLOR = vec3(0.30, 0.45, 0.68);
+
 float dot2(in vec2 v) {
     return dot(v, v);
 }
@@ -427,16 +430,24 @@ float softShadows(in vec3 sunDir, in vec3 p, float k) {
     return opacity;
 }
 
-vec3 illumination(vec3 sun, vec3 p, vec3 camera) {
+vec3 lightning(in vec3 sun, in vec3 p, in vec3 camera) {
     vec3 n = estimateNormal(p);
 
-    float dotSN = dot(n, sun);
-    if (dotSN < 0) {
-        return vec3(0.0);
+    float dotNS = dot(n, sun);
+    vec3 sunLight = vec3(0.0);
+    if (dotNS > 0) {
+        sunLight = clamp(SUN_COLOR * dotNS * softShadows(sun, p, 4.0), 0.0, 1.0);
     }
 
-    vec3 sunColor = vec3(0.87, 0.65, 0.59);
-    return sunColor * dotSN * softShadows(sun, p, 4.0);
+    vec3 skyLight = clamp(SUN_COLOR * (0.5 + 0.5 * n.y) * (0.1 * SKY_COLOR), 0.0, 1.0);
+
+    float dotNB = dot(n, -sun);
+    vec3 bounceLight = vec3(0.0);
+    if (dotNB > 0) {
+        bounceLight = clamp(SUN_COLOR * dotNB * (0.4 * SUN_COLOR), 0.0, 1.0);
+    }
+
+    return sunLight + skyLight + bounceLight;
 }
 
 vec3 fog(in vec3 color, float dist) {
@@ -446,7 +457,7 @@ vec3 fog(in vec3 color, float dist) {
 
 vec3 sky(in vec3 camera, in vec3 dir) {
     // Deeper blue when looking up
-    vec3 color = vec3(0.30, 0.45, 0.68) - 0.4 * dir.y;
+    vec3 color = SKY_COLOR - 0.4 * dir.y;
 
     // Draw clouds on a plane at 2500 height
     // "dir" is the normalized vector towards the plane with length of 1.
@@ -504,12 +515,14 @@ void main() {
     // vec3 color = phongIllumination(K_a, K_d, K_s, shininess, p, camera);
 
     vec3 sun = normalize(vec3(4.0, 2.5, 5.0));
-    vec3 color = illumination(sun, p, camera);
+    vec3 color = lightning(sun, p, camera);
     color = fog(color, dist);
 
-    color = pow(color, vec3(1.0, 0.92, 1.0)); // soft green
-    color *= vec3(1.02, 0.99, 0.9);           // tint red
-    color.z = color.z + 0.1;                  // bias blue
+    color = pow(color, vec3(1.0, 0.92, 1.0));
+    color *= vec3(1.02, 0.99, 0.9);
+    color.z = color.z + 0.1;
+
+    color = smoothstep(0.0, 1.0, color);
 
     FragColor = vec4(color, 1.0);
 }
