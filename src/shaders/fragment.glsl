@@ -6,7 +6,7 @@ out vec4 FragColor;
 uniform vec2 iResolution;
 uniform float iTime;
 
-const int MAX_MARCHING_STEPS = 255;
+const int MAX_MARCHING_STEPS = 400;
 const float MIN_DIST = 0.0;
 const float MAX_DIST = 250.0;
 const float FOV = 45.0;
@@ -15,18 +15,6 @@ const float PI = 3.14159265;
 
 const vec3 SUN_COLOR = vec3(0.87, 0.65, 0.59);
 const vec3 SKY_COLOR = vec3(0.30, 0.45, 0.68);
-
-float dot2(in vec2 v) {
-    return dot(v, v);
-}
-
-float dot2(in vec3 v) {
-    return dot(v, v);
-}
-
-float ndot(in vec2 a, in vec2 b) {
-    return a.x * b.x - a.y * b.y;
-}
 
 // https://stackoverflow.com/a/4275343
 float rand(vec2 co) {
@@ -274,120 +262,48 @@ mat4 lookAt(vec3 camera, vec3 target, vec3 up) {
                 vec4(0.0, 0.0, 0.0, 1.0));
 }
 
-/**
- * Derived from: https://www.shadertoy.com/view/lt33z7
- * Lighting contribution of a single point light source via Phong illumination.
- *
- * The vec3 returned is the RGB color of the light's contribution.
- *
- * k_a: Ambient color
- * k_d: Diffuse color
- * k_s: Specular color
- * alpha: Shininess coefficient
- * p: position of point being lit
- * eye: the position of the camera
- * lightPos: the position of the light
- * i_s: specular color/intensity of the light
- * i_d: diffuse color/intensity of the light
- *
- * See https://en.wikipedia.org/wiki/Phong_reflection_model#Description
- */
-vec3 phongContribForLight(vec3 k_d, vec3 k_s, float alpha, vec3 p, vec3 camera,
-                          vec3 lightPos, vec3 i) {
-    // ^N, which is the normal at this point on the surface
-    vec3 N = estimateNormal(p);
-
-    // ^L_m, which is the direction vector from the point on the surface toward
-    // each light source
-    vec3 L = normalize(lightPos - p);
-
-    // ^V, which is the direction pointing towards the viewer (such as a virtual
-    // camera).
-    vec3 V = normalize(camera - p);
-
-    // ^R_m, which is the direction that a perfectly reflected ray of light
-    // would take from this point on the surface
-    vec3 R = normalize(reflect(-L, N));
-    // vec3 R = 2 * dot(L, N) * N - L;
-
-    // float dotLN = dot(L, N);
-    float dotLN = clamp(dot(L, N), 0.0, 1.0);
-    float dotRV = dot(R, V);
-
-    // Why are these skipped?
-    // > "Although the above formulation is the common way of presenting
-    // the Phong reflection model, each term should only be included if the
-    // term's dot product is positive."
-    // > "Additionally, the specular term should only be included
-    // if the dot product of the diffuse term is positive."
-
-    if (dotLN < 0.0) {
-        // Light not visible from this point on the surface
-        return vec3(0.0, 0.0, 0.0);
-    }
-
-    if (dotRV < 0.0) {
-        // Light reflection in opposite direction as viewer, apply only diffuse
-        // component
-        return i * (k_d * dotLN);
-    }
-    return k_d * dotLN * i + k_s * pow(dotRV, alpha) * i;
-}
-
-/**
- * Derived from: https://www.shadertoy.com/view/lt33z7
- * Lighting via Phong illumination.
- *
- * The vec3 returned is the RGB color of that point after lighting is applied.
- * k_a: Ambient color
- * k_d: Diffuse color
- * k_s: Specular color
- * alpha: Shininess coefficient
- * p: position of point being lit
- * eye: the position of the camera
- *
- * See https://en.wikipedia.org/wiki/Phong_reflection_model#Description
- */
-vec3 phongIllumination(vec3 k_a, vec3 k_d, vec3 k_s, float alpha, vec3 p,
-                       vec3 camera) {
-    const vec3 ambientLight = 0.3 * vec3(1.0, 1.0, 1.0);
-    vec3 color = ambientLight * k_a;
-
-    vec3 light1Pos = vec3(camera.x + 4.0 * sin(iTime), camera.y + 2.0,
-                          camera.z + 4.0 * cos(iTime));
-    vec3 light1Intensity = vec3(0.4, 0.4, 0.4);
-
-    color += phongContribForLight(k_d, k_s, alpha, p, camera, light1Pos,
-                                  light1Intensity);
-
-    vec3 light2Pos = vec3(camera.x + 2.0 * sin(0.37 * iTime),
-                          camera.y + 2.0 * cos(0.37 * iTime), camera.z + 2.0);
-    vec3 light2Intensity = vec3(0.4, 0.4, 0.4);
-
-    color += phongContribForLight(k_d, k_s, alpha, p, camera, light2Pos,
-                                  light2Intensity);
-    return color;
-}
-
 vec3 rayDirection(float fov, vec2 dimensions, vec2 fragCoord) {
     vec2 xy = fragCoord - dimensions / 2.0;
     float z = dimensions.y / tan(radians(fov) / 2.0);
     return normalize(vec3(xy, -z));
 }
 
-float rayMarch(vec3 camera, vec3 marchingDirection, float start, float end) {
-    float depth = start;
-    for (int i = 0; i < MAX_MARCHING_STEPS; i++) {
-        float dist = sdScene(camera + depth * marchingDirection);
-        if (dist < i * 0.001) {
-            return depth;
-        }
-        depth += dist;
-        if (depth >= end) {
-            return -1.0;
-        }
+float rayMarch(in vec3 camera, in vec3 rayDir, float start, float end) {
+    // Check if we would hit the bounding plane before reaching "end"
+    float stepsToBoundingPlane = (100.0 - camera.y) / rayDir.y;
+    if (stepsToBoundingPlane > 0.0) {
+        end = min(end, stepsToBoundingPlane);
     }
-    return -1.0;
+
+    float dist, stepDist = 0.0;
+    float depth = start;
+
+    for (int i = 0; i < MAX_MARCHING_STEPS; i++) {
+        stepDist = 0.001 * depth;
+
+        vec3 pos = camera + depth * rayDir;
+        float dist = sdScene(pos);
+
+        if (dist < stepDist) break;
+
+        // TODO: Get normals from sdScene and estimate the steepness, and slow down if needed.
+        // TODO: we could probably quite efficiently get the normals of the surface here
+        //       and then raymarch the bread separately.
+        depth += dist * 0.80;
+
+        if (depth >= end) break;
+    }
+
+    if (depth >= end) {
+        return -1.0;
+    }
+
+    // TODO: Linear interpolation could help with accuracy, but doesn't.
+    //       Evaluate if this is worth doing?
+    // depth = lastDepth +
+    //         (stepDist - lastDist) * (depth - lastDepth) / (dist - lastDist);
+
+    return depth;
 }
 
 float shadows(in vec3 sunDir, in vec3 p) {
@@ -426,10 +342,12 @@ vec3 lightning(in vec3 sun, in vec3 p, in vec3 camera) {
     float dotNS = dot(n, sun);
     vec3 sunLight = vec3(0.0);
     if (dotNS > 0) {
-        sunLight = clamp(SUN_COLOR * dotNS * softShadows(sun, p, 4.0), 0.0, 1.0);
+        sunLight =
+            clamp(SUN_COLOR * dotNS * softShadows(sun, p, 4.0), 0.0, 1.0);
     }
 
-    vec3 skyLight = clamp(SUN_COLOR * (0.5 + 0.5 * n.y) * (0.1 * SKY_COLOR), 0.0, 1.0);
+    vec3 skyLight =
+        clamp(SUN_COLOR * (0.5 + 0.5 * n.y) * (0.1 * SKY_COLOR), 0.0, 1.0);
 
     float dotNB = dot(n, -sun);
     vec3 bounceLight = vec3(0.0);
@@ -472,14 +390,7 @@ void main() {
     // vec3 camera = vec3(20 * cos(iTime / 10), 4, 20 * sin(iTime / 10));
     vec3 camera =
         vec3(10.0 * cos(iTime / 10.0), -3.4, 10.0 * sin(iTime / 10.0));
-    vec3 target = vec3(2.0, -3.8 + 5.0 * sin(iTime / 10.0), 5.0);
-
-    // vec3 camera = vec3(0.0, 10 + 10 * cos(iTime / 10), iTime);
-    // vec3 target = vec3(
-    //     camera.x + 20 * cos(iTime / 10),
-    //     camera.y + 0.0,
-    //     camera.z + 20 * sin(iTime / 10)
-    // );
+    vec3 target = vec3(2.0, -3.8 + 2.0 * sin(iTime / 10.0), 5.0);
 
     mat4 viewToWorld = lookAt(camera, target, vec3(0.0, 1.0, 0.0));
 
@@ -493,16 +404,6 @@ void main() {
 
     // The closest point on the surface to the eyepoint along the view ray
     vec3 p = camera + dist * worldDir;
-
-    // vec3 n = estimateNormal(p);
-    // vec3 K_a = n;
-    // vec3 K_d = smoothstep(0.6, 0.7, n.y) * vec3(1.0, 1.0, 1.0);
-    // vec3 K_s = smoothstep(0.6, 0.7, n.y) * vec3(1.0, 1.0, 1.0);
-    // vec3 K_a = vec3(0.4, 0.3, 0.2);
-    // vec3 K_d = K_a;
-    // vec3 K_s = vec3(1.0);
-    // float shininess = 100.0;
-    // vec3 color = phongIllumination(K_a, K_d, K_s, shininess, p, camera);
 
     vec3 sun = normalize(vec3(4.0, 2.5, 5.0));
     vec3 color = lightning(sun, p, camera);
