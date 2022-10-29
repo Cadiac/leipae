@@ -57,10 +57,10 @@ impl EventProcessor {
                         Some(VirtualKeyCode::T) => {
                             self.epoch = SystemTime::now();
                         }
-                        Some(VirtualKeyCode::P) => {
+                        Some(VirtualKeyCode::Space) => {
                             self.is_paused = true;
                         }
-                        Some(VirtualKeyCode::O) => {
+                        Some(VirtualKeyCode::B) => {
                             self.is_paused = false;
                             self.epoch = SystemTime::now().sub(self.elapsed);
                         }

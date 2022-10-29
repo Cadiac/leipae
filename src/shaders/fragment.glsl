@@ -34,28 +34,25 @@ float noise(vec2 p) {
 }
 
 // http://en.wikipedia.org/wiki/Rotation_matrix#Basic_rotations
-mat4 tRotateX(float theta) {
+mat3 tRotateX(float theta) {
     float s = sin(theta);
     float c = cos(theta);
 
-    return mat4(vec4(1, 0, 0, 0), vec4(0, c, -s, 0), vec4(0, s, c, 0),
-                vec4(0, 0, 0, 1));
+    return mat3(vec3(1, 0, 0), vec3(0, c, -s), vec3(0, s, c));
 }
 
-mat4 tRotateY(float theta) {
+mat3 tRotateY(float theta) {
     float s = sin(theta);
     float c = cos(theta);
 
-    return mat4(vec4(c, 0, s, 0), vec4(0, 1, 0, 0), vec4(-s, 0, c, 0),
-                vec4(0, 0, 0, 1));
+    return mat3(vec3(c, 0, s), vec3(0, 1, 0), vec3(-s, 0, c));
 }
 
-mat4 tRotateZ(float theta) {
+mat3 tRotateZ(float theta) {
     float s = sin(theta);
     float c = cos(theta);
 
-    return mat4(vec4(c, -s, 0, 0), vec4(s, c, 0, 0), vec4(0, 0, 1, 0),
-                vec4(0, 0, 0, 1));
+    return mat3(vec3(c, -s, 0), vec3(s, c, 0), vec3(0, 0, 1));
 }
 
 float opIntersect(float distA, float distB) {
@@ -68,6 +65,11 @@ float opUnion(float distA, float distB) {
 
 float opDifference(float distA, float distB) {
     return max(distA, -distB);
+}
+
+float opExtrusion(in vec3 p, in float d, in float h) {
+    vec2 w = vec2(d, abs(p.z) - h);
+    return min(max(w.x, w.y), 0.0) + length(max(w, 0.0));
 }
 
 vec3 opTwist(vec3 p, float k) {
@@ -148,6 +150,16 @@ float sdTriPrism(vec3 p, vec2 h) {
     return max(q.z - h.y, max(q.x * 0.866025 + p.y * 0.5, -p.y) - h.x * 0.5);
 }
 
+float sdArc(in vec2 p, in float sc, in float ra, float rb) {
+    // sc is the sin/cos of the arc's aperture
+    p.x = abs(p.x);
+    float s = sin(sc);
+    float c = cos(sc);
+    return ((c * p.x > s * p.y) ? length(p - vec2(s, c) * ra)
+                                : abs(length(p) - ra)) -
+           rb;
+}
+
 /**
  * Derived from: https://iquilezles.org/articles/morenoise/
  * Vector hash function, unsafe for security use
@@ -217,9 +229,8 @@ float sdLeipae(in vec3 p) {
             offsetY = 1.4;
         }
 
-        float wedge = sdTriPrism((tRotateZ(1.0) * tRotateY(0.3) *
-                                  vec4(p.x + i * 1.1, p.y - offsetY, p.z, 1.0))
-                                     .xyz,
+        float wedge = sdTriPrism(tRotateZ(1.0) * tRotateY(0.3) *
+                                     vec3(p.x + i * 1.1, p.y - offsetY, p.z),
                                  vec2(1.0, 2.0)) +
                       (0.03 * noise(p.xz * 10));
 
@@ -233,12 +244,74 @@ float sdTerrain(in vec3 p) {
     return p.y - fbm(p.xz + vec2(-1.0, 2.0), 1.5, 8) + 4;
 }
 
+float sdChar(vec3 p, int charCode) {
+    switch (charCode) {
+    case 65: // A
+        return opUnion(opUnion(sdBox(tRotateZ(-60) * p + vec3(-0.25, 0, 0),
+                                     vec3(0.1, 1.0, 0.2)),
+                               sdBox(tRotateZ(60.0) * p + vec3(0.25, 0, 0),
+                                     vec3(0.1, 1.0, 0.2))),
+                       sdBox(p, vec3(0.5, 0.1, 0.2)));
+    case 66: // B
+        return opUnion(
+            sdBox(p + vec3(-0.25, 0, 0), vec3(0.1, 1.0, 0.2)),
+            opUnion(
+                opExtrusion(
+                    p,
+                    sdArc((tRotateZ(0.5 * PI) * p + vec3(-0.45, 0.0, 0.0)).xy,
+                          2.1, 0.45, 0.1),
+                    0.2),
+                opExtrusion(
+                    p,
+                    sdArc((tRotateZ(0.5 * PI) * p + vec3(0.45, 0.0, 0.0)).xy,
+                          2.1, 0.45, 0.1),
+                    0.2)));
+    case 67: // C
+        return opExtrusion(
+            p,
+            sdArc((tRotateZ(-0.5 * PI) * p + vec3(0.0, 0.4, 0.0)).xy, 2.2, 0.8,
+                  0.1),
+            0.2);
+    case 68: // D
+        return opUnion(
+            sdBox(p + vec3(-0.5, 0.0, 0.0), vec3(0.1, 0.8, 0.2)),
+            opExtrusion(p,
+                        sdArc((tRotateZ(0.5 * PI) * p + vec3(0.0, 0.4, 0.0)).xy,
+                              PI / 2, 0.8, 0.1),
+                        0.2));
+    case 73: // I
+        return sdBox(p + vec3(-0.5, 0.0, 0.0), vec3(0.1, 0.8, 0.2));
+    default:
+        return 0.0;
+    }
+}
+
+float sdCadiac(in vec3 p) {
+    return opUnion(
+        opUnion(
+            sdChar(p, 67),
+            sdChar(p + vec3(1.2, 0.0, 0.0), 65)
+        ),
+        opUnion(
+            opUnion(
+                sdChar(p + vec3(2.4, 0.0, 0.0), 68),
+                sdChar(p + vec3(3.6, 0.0, 0.0), 73)
+            ),
+            opUnion(
+                sdChar(p + vec3(4.0, 0.0, 0.0), 65),
+                sdChar(p + vec3(5.2, 0.0, 0.0), 67)
+            )
+        )
+    );
+}
+
 float sdScene(in vec3 p) {
     float terrain = sdTerrain(p);
     float water = sdPlane(p, -3.9);
     float leipae = sdLeipae(vec3(p.x, p.y + 2.0, p.z));
+    float text = sdCadiac(vec3(p.x, p.y, p.z));
 
-    return opUnion(opUnion(terrain, leipae), water);
+    return opUnion(opUnion(terrain, leipae), opUnion(water, text));
 }
 
 vec3 estimateNormal(vec3 p) {
@@ -286,8 +359,10 @@ float rayMarch(in vec3 camera, in vec3 rayDir, float start, float end) {
 
         if (dist < stepDist) break;
 
-        // TODO: Get normals from sdScene and estimate the steepness, and slow down if needed.
-        // TODO: we could probably quite efficiently get the normals of the surface here
+        // TODO: Get normals from sdScene and estimate the steepness, and slow
+        // down if needed.
+        // TODO: we could probably quite efficiently get the normals of the
+        // surface here
         //       and then raymarch the bread separately.
         depth += dist * 0.80;
 
