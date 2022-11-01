@@ -97,6 +97,22 @@ vec3 opRepLim(vec3 p, float c, vec3 l) {
 /**
  * Derived from: https://iquilezles.org/articles/distfunctions/
  * SDF primitive distance functions
+ * The MIT License
+ * Copyright © 2019 Inigo Quilez
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions: The above copyright
+ * notice and this permission notice shall be included in all copies or
+ * substantial portions of the Software. THE SOFTWARE IS PROVIDED "AS IS",
+ * WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+ * TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
+ * FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
+ * THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
 float sdRoundBox(vec3 p, vec3 b, float r) {
@@ -244,72 +260,78 @@ float sdTerrain(in vec3 p) {
     return p.y - fbm(p.xz + vec2(-1.0, 2.0), 1.5, 8) + 4;
 }
 
-float sdChar(vec3 p, int charCode) {
+vec2 sdChar(vec3 p, int charCode) {
     switch (charCode) {
     case 65: // A
-        return opUnion(opUnion(sdBox(tRotateZ(-60) * p + vec3(-0.25, 0, 0),
-                                     vec3(0.1, 1.0, 0.2)),
-                               sdBox(tRotateZ(60.0) * p + vec3(0.25, 0, 0),
-                                     vec3(0.1, 1.0, 0.2))),
-                       sdBox(p, vec3(0.5, 0.1, 0.2)));
+        return vec2(1.2,
+                    opUnion(opUnion(sdBox(tRotateZ(-60) * p + vec3(-0.25, 0, 0),
+                                          vec3(0.1, 1.0, 0.2)),
+                                    sdBox(tRotateZ(60.0) * p + vec3(0.25, 0, 0),
+                                          vec3(0.1, 1.0, 0.2))),
+                            sdBox(p, vec3(0.5, 0.1, 0.2))));
     case 66: // B
-        return opUnion(
-            sdBox(p + vec3(-0.25, 0, 0), vec3(0.1, 1.0, 0.2)),
+        return vec2(
+            1.0,
             opUnion(
-                opExtrusion(
-                    p,
-                    sdArc((tRotateZ(0.5 * PI) * p + vec3(-0.45, 0.0, 0.0)).xy,
-                          2.1, 0.45, 0.1),
-                    0.2),
-                opExtrusion(
-                    p,
-                    sdArc((tRotateZ(0.5 * PI) * p + vec3(0.45, 0.0, 0.0)).xy,
-                          2.1, 0.45, 0.1),
-                    0.2)));
+                sdBox(p + vec3(-0.25, 0, 0), vec3(0.1, 1.0, 0.2)),
+                opUnion(
+                    opExtrusion(
+                        p,
+                        sdArc(
+                            (tRotateZ(0.5 * PI) * p + vec3(-0.45, 0.0, 0.0)).xy,
+                            2.1, 0.45, 0.1),
+                        0.2),
+                    opExtrusion(
+                        p,
+                        sdArc(
+                            (tRotateZ(0.5 * PI) * p + vec3(0.45, 0.0, 0.0)).xy,
+                            2.1, 0.45, 0.1),
+                        0.2))));
     case 67: // C
-        return opExtrusion(
-            p,
-            sdArc((tRotateZ(-0.5 * PI) * p + vec3(0.0, 0.4, 0.0)).xy, 2.2, 0.8,
-                  0.1),
-            0.2);
+        return vec2(
+            1.2, opExtrusion(
+                     p,
+                     sdArc((tRotateZ(-0.5 * PI) * p + vec3(0.0, 0.4, 0.0)).xy,
+                           2.2, 0.8, 0.1),
+                     0.2));
     case 68: // D
-        return opUnion(
-            sdBox(p + vec3(-0.5, 0.0, 0.0), vec3(0.1, 0.8, 0.2)),
-            opExtrusion(p,
+        return vec2(
+            1.2,
+            opUnion(sdBox(p + vec3(-0.5, 0.0, 0.0), vec3(0.1, 0.8, 0.2)),
+                    opExtrusion(
+                        p,
                         sdArc((tRotateZ(0.5 * PI) * p + vec3(0.0, 0.4, 0.0)).xy,
                               PI / 2, 0.8, 0.1),
-                        0.2));
+                        0.2)));
     case 73: // I
-        return sdBox(p + vec3(-0.5, 0.0, 0.0), vec3(0.1, 0.8, 0.2));
+        return vec2(0.6, sdBox(p + vec3(-0.5, 0.0, 0.0), vec3(0.1, 0.8, 0.2)));
     default:
-        return 0.0;
+        return vec2(0.0, 0.0);
     }
 }
 
 float sdCadiac(in vec3 p) {
-    return opUnion(
-        opUnion(
-            sdChar(p, 67),
-            sdChar(p + vec3(1.2, 0.0, 0.0), 65)
-        ),
-        opUnion(
-            opUnion(
-                sdChar(p + vec3(2.4, 0.0, 0.0), 68),
-                sdChar(p + vec3(3.6, 0.0, 0.0), 73)
-            ),
-            opUnion(
-                sdChar(p + vec3(4.0, 0.0, 0.0), 65),
-                sdChar(p + vec3(5.2, 0.0, 0.0), 67)
-            )
-        )
-    );
+    int[] text = int[](67, 65, 68, 73, 65, 67);
+    const int chars = text.length();
+
+    float dist = MAX_DIST;
+    float offset = 0;
+
+    for (int i = 0; i < chars; i++) {
+        vec2 od = sdChar(p + vec3(offset, 0.0, 0.0), text[i]);
+        offset += od.x;
+
+        dist = min(dist, od.y);
+    }
+
+    return dist;
 }
 
 float sdScene(in vec3 p) {
     float terrain = sdTerrain(p);
     float water = sdPlane(p, -3.9);
     float leipae = sdLeipae(vec3(p.x, p.y + 2.0, p.z));
-    float text = sdCadiac(vec3(p.x, p.y, p.z));
+    float text = sdCadiac(p);
 
     return opUnion(opUnion(terrain, leipae), opUnion(water, text));
 }
