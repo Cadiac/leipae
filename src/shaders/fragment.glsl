@@ -13,8 +13,8 @@ const float FOV = 45.0;
 const float EPSILON = 0.00001;
 const float PI = 3.14159265;
 
-const vec3 SUN_COLOR = vec3(0.87, 0.65, 0.59);
-const vec3 SKY_COLOR = vec3(0.30, 0.45, 0.68);
+const vec3 SUN_COLOR = vec3(0.87, 0.75, 0.59);
+const vec3 SKY_COLOR = vec3(0.65, 0.55, 0.52);
 
 // https://stackoverflow.com/a/4275343
 float rand(vec2 co) {
@@ -61,6 +61,14 @@ float opIntersect(float distA, float distB) {
 
 float opUnion(float distA, float distB) {
     return min(distA, distB);
+}
+
+vec4 opUnion(vec4 distA, vec4 distB) {
+    if (distA.a < distB.a) {
+        return distA;
+    }
+
+    return distB;
 }
 
 float opDifference(float distA, float distB) {
@@ -145,8 +153,10 @@ float sdSphere(vec3 p, float s) {
     return length(p) - s;
 }
 
-float sdPlane(vec3 p, float y) {
-    return p.y - y;
+vec4 sdWater(vec3 p, float y) {
+    vec3 material = vec3(0.67, 0.73, 0.81);
+    float dist = p.y - y;
+    return vec4(material, dist);
 }
 
 float sdEllipsoid(vec3 p, vec3 r) {
@@ -231,7 +241,7 @@ float fbm(in vec2 x, in float H, int octaves) {
     return t;
 }
 
-float sdLeipae(in vec3 p) {
+vec4 sdLeipae(in vec3 p) {
     float ellipsoidDist = sdEllipsoid(opBend(p, -0.03), vec3(5.0, 1.0, 1.5)) -
                           0.25 + (0.05 * noise(p.xz * 5)) +
                           (0.01 * noise(p.xz * 30));
@@ -253,11 +263,13 @@ float sdLeipae(in vec3 p) {
         dist = opDifference(dist, wedge);
     }
 
-    return dist;
+    vec3 material = vec3(0.88, 0.52, 0.07);
+    return vec4(material, dist);
 }
 
-float sdTerrain(in vec3 p) {
-    return p.y - fbm(p.xz + vec2(-1.0, 2.0), 1.5, 8) + 4;
+vec4 sdTerrain(in vec3 p) {
+    vec3 material = vec3(0.81, 0.75, 0.67);
+    return vec4(material, p.y - fbm(p.xz + vec2(-1.0, 2.0), 1.5, 8) + 4);
 }
 
 vec2 sdChar(vec3 p, int charCode) {
@@ -310,7 +322,7 @@ vec2 sdChar(vec3 p, int charCode) {
     }
 }
 
-float sdCadiac(in vec3 p) {
+vec4 sdCadiac(in vec3 p) {
     int[] text = int[](67, 65, 68, 73, 65, 67);
     const int chars = text.length();
 
@@ -324,25 +336,26 @@ float sdCadiac(in vec3 p) {
         dist = min(dist, od.y);
     }
 
-    return dist;
+    vec3 material = vec3(1.0, 1.0, 0.0);
+    return vec4(material, dist);
 }
 
-float sdScene(in vec3 p) {
-    float terrain = sdTerrain(p);
-    float water = sdPlane(p, -3.9);
-    float leipae = sdLeipae(vec3(p.x, p.y + 2.0, p.z));
-    float text = sdCadiac(p);
+vec4 sdScene(in vec3 p) {
+    vec4 terrain = sdTerrain(p);
+    vec4 water = sdWater(p, -3.9);
+    vec4 leipae = sdLeipae(vec3(p.x, p.y + 2.0, p.z));
+    vec4 text = sdCadiac(p);
 
     return opUnion(opUnion(terrain, leipae), opUnion(water, text));
 }
 
 vec3 estimateNormal(vec3 p) {
-    float dx = sdScene(vec3(p.x + EPSILON, p.y, p.z)) -
-               sdScene(vec3(p.x - EPSILON, p.y, p.z));
-    float dy = sdScene(vec3(p.x, p.y + EPSILON, p.z)) -
-               sdScene(vec3(p.x, p.y - EPSILON, p.z));
-    float dz = sdScene(vec3(p.x, p.y, p.z + EPSILON)) -
-               sdScene(vec3(p.x, p.y, p.z - EPSILON));
+    float dx = sdScene(vec3(p.x + EPSILON, p.y, p.z)).a -
+               sdScene(vec3(p.x - EPSILON, p.y, p.z)).a;
+    float dy = sdScene(vec3(p.x, p.y + EPSILON, p.z)).a -
+               sdScene(vec3(p.x, p.y - EPSILON, p.z)).a;
+    float dz = sdScene(vec3(p.x, p.y, p.z + EPSILON)).a -
+               sdScene(vec3(p.x, p.y, p.z - EPSILON)).a;
     return normalize(vec3(dx, dy, dz));
 }
 
@@ -363,23 +376,30 @@ vec3 rayDirection(float fov, vec2 dimensions, vec2 fragCoord) {
     return normalize(vec3(xy, -z));
 }
 
-float rayMarch(in vec3 camera, in vec3 rayDir, float start, float end) {
+vec4 rayMarch(in vec3 camera, in vec3 rayDir, float start, float end) {
     // Check if we would hit the bounding plane before reaching "end"
     float stepsToBoundingPlane = (100.0 - camera.y) / rayDir.y;
     if (stepsToBoundingPlane > 0.0) {
         end = min(end, stepsToBoundingPlane);
     }
 
-    float dist, stepDist = 0.0;
+    float stepDist = 0.0;
+    float dist = 0.0;
     float depth = start;
+
+    vec3 material = vec3(1.0);
 
     for (int i = 0; i < MAX_MARCHING_STEPS; i++) {
         stepDist = 0.001 * depth;
 
         vec3 pos = camera + depth * rayDir;
-        float dist = sdScene(pos);
+        vec4 res = sdScene(pos);
+        float dist = res.a;
 
-        if (dist < stepDist) break;
+        if (dist < stepDist) {
+            material = res.xyz;
+            break;
+        }
 
         // TODO: Get normals from sdScene and estimate the steepness, and slow
         // down if needed.
@@ -392,7 +412,7 @@ float rayMarch(in vec3 camera, in vec3 rayDir, float start, float end) {
     }
 
     if (depth >= end) {
-        return -1.0;
+        return vec4(material, -1.0);
     }
 
     // TODO: Linear interpolation could help with accuracy, but doesn't.
@@ -400,14 +420,14 @@ float rayMarch(in vec3 camera, in vec3 rayDir, float start, float end) {
     // depth = lastDepth +
     //         (stepDist - lastDist) * (depth - lastDepth) / (dist - lastDist);
 
-    return depth;
+    return vec4(material, depth);
 }
 
 float shadows(in vec3 sunDir, in vec3 p) {
     // We don't really know where sun is, but lets say its MAX_DIST units away
     // in sunDir. March p towards the sun, and see if we get far enough
     for (float depth = 1.0; depth < MAX_DIST;) {
-        float dist = sdScene(p + depth * sunDir);
+        float dist = sdScene(p + depth * sunDir).a;
         if (dist < EPSILON) {
             return 0.0;
         }
@@ -423,7 +443,7 @@ float shadows(in vec3 sunDir, in vec3 p) {
 float softShadows(in vec3 sunDir, in vec3 p, float k) {
     float opacity = 1.0;
     for (float depth = 1.0; depth < MAX_DIST;) {
-        float dist = sdScene(p + depth * sunDir);
+        float dist = sdScene(p + depth * sunDir).a;
         if (dist < EPSILON) {
             return 0.0;
         }
@@ -433,7 +453,7 @@ float softShadows(in vec3 sunDir, in vec3 p, float k) {
     return opacity;
 }
 
-vec3 lightning(in vec3 sun, in vec3 p, in vec3 camera) {
+vec3 lightning(in vec3 sun, in vec3 p, in vec3 camera, in vec3 material) {
     vec3 n = estimateNormal(p);
 
     float dotNS = dot(n, sun);
@@ -452,7 +472,7 @@ vec3 lightning(in vec3 sun, in vec3 p, in vec3 camera) {
         bounceLight = clamp(SUN_COLOR * dotNB * (0.4 * SUN_COLOR), 0.0, 1.0);
     }
 
-    return sunLight + skyLight + bounceLight;
+    return clamp(material * (sunLight + skyLight + bounceLight), 0.0, 1.0);
 }
 
 vec3 fog(in vec3 color, float dist) {
@@ -462,7 +482,7 @@ vec3 fog(in vec3 color, float dist) {
 
 vec3 sky(in vec3 camera, in vec3 dir) {
     // Deeper blue when looking up
-    vec3 color = SKY_COLOR - 0.4 * dir.y;
+    vec3 color = SKY_COLOR - 0.5 * dir.y;
 
     // Draw clouds on a plane at 2500 height
     // "dir" is the normalized vector towards the plane with length of 1.
@@ -471,8 +491,8 @@ vec3 sky(in vec3 camera, in vec3 dir) {
     float dist = (2500 - camera.y) / dir.y;
     if (dist > 0.0 && dist < 100000) {
         vec3 p = (camera + dist * dir);
-        float clouds = smoothstep(-0.3, 0.7, fbm(0.0005 * p.xz, 1.1, 9));
-        color = mix(color, vec3(1.0), 0.2 * clouds);
+        float clouds = smoothstep(-0.2, 0.5, fbm(0.0004 * p.xz + vec2(-3.0, 2.0), 1.1, 8));
+        color = mix(color, vec3(1.0), 0.4 * clouds);
     }
 
     // Fade to white fog further away
@@ -484,7 +504,6 @@ vec3 sky(in vec3 camera, in vec3 dir) {
 
 void main() {
     vec3 viewDir = rayDirection(FOV, iResolution, gl_FragCoord.xy);
-    // vec3 camera = vec3(20 * cos(iTime / 10), 4, 20 * sin(iTime / 10));
     vec3 camera =
         vec3(10.0 * cos(iTime / 10.0), -3.4, 10.0 * sin(iTime / 10.0));
     vec3 target = vec3(2.0, -3.8 + 2.0 * sin(iTime / 10.0), 5.0);
@@ -493,17 +512,21 @@ void main() {
 
     vec3 worldDir = (viewToWorld * vec4(viewDir, 0.0)).xyz;
 
-    float dist = rayMarch(camera, worldDir, MIN_DIST, MAX_DIST);
+    vec4 r = rayMarch(camera, worldDir, MIN_DIST, MAX_DIST);
+    float dist = r.a;
+
     if (dist < 0.0) {
         FragColor = vec4(sky(camera, worldDir), 1.0);
         return;
     }
 
+    vec3 material = r.xyz;
+
     // The closest point on the surface to the eyepoint along the view ray
     vec3 p = camera + dist * worldDir;
 
     vec3 sun = normalize(vec3(4.0, 2.5, 5.0));
-    vec3 color = lightning(sun, p, camera);
+    vec3 color = lightning(sun, p, camera, material);
     color = fog(color, dist);
 
     color = pow(color, vec3(1.0, 0.92, 1.0));
