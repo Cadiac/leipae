@@ -154,7 +154,7 @@ float sdSphere(vec3 p, float s) {
 }
 
 vec4 sdWater(vec3 p, float y) {
-    vec3 material = vec3(0.67, 0.73, 0.81);
+    vec3 material = vec3(0.76, 0.83, 0.92);
     float dist = p.y - y;
     return vec4(material, dist);
 }
@@ -269,7 +269,7 @@ vec4 sdLeipae(in vec3 p) {
 
 vec4 sdTerrain(in vec3 p) {
     vec3 material = vec3(0.81, 0.75, 0.67);
-    return vec4(material, p.y - fbm(p.xz + vec2(-1.0, 2.0), 1.5, 8) + 4);
+    return vec4(material, p.y - abs(fbm((p.xz + vec2(-10.0, 20.0)) / 2.0, 1.2, 9)) * 2);
 }
 
 vec2 sdChar(vec3 p, int charCode) {
@@ -330,7 +330,7 @@ vec4 sdCadiac(in vec3 p) {
     float offset = 0;
 
     for (int i = 0; i < chars; i++) {
-        vec2 od = sdChar(p + vec3(offset, 0.0, 0.0), text[i]);
+        vec2 od = sdChar(p + vec3(offset, -2.0, 0.0), text[i]);
         offset += od.x;
 
         dist = min(dist, od.y);
@@ -342,8 +342,8 @@ vec4 sdCadiac(in vec3 p) {
 
 vec4 sdScene(in vec3 p) {
     vec4 terrain = sdTerrain(p);
-    vec4 water = sdWater(p, -3.9);
-    vec4 leipae = sdLeipae(vec3(p.x, p.y + 2.0, p.z));
+    vec4 water = sdWater(p, 0.10);
+    vec4 leipae = sdLeipae(vec3(p.x + 5, p.y - 2.0, p.z));
     vec4 text = sdCadiac(p);
 
     return opUnion(opUnion(terrain, leipae), opUnion(water, text));
@@ -406,7 +406,7 @@ vec4 rayMarch(in vec3 camera, in vec3 rayDir, float start, float end) {
         // TODO: we could probably quite efficiently get the normals of the
         // surface here
         //       and then raymarch the bread separately.
-        depth += dist * 0.80;
+        depth += dist * 0.5;
 
         if (depth >= end) break;
     }
@@ -505,7 +505,7 @@ vec3 sky(in vec3 camera, in vec3 dir) {
 void main() {
     vec3 viewDir = rayDirection(FOV, iResolution, gl_FragCoord.xy);
     vec3 camera =
-        vec3(10.0 * cos(iTime / 10.0), -3.4, 10.0 * sin(iTime / 10.0));
+        vec3(10.0 * cos(iTime / 10.0), 5, 10.0 * sin(iTime / 10.0));
     vec3 target = vec3(2.0, -3.8 + 2.0 * sin(iTime / 10.0), 5.0);
 
     mat4 viewToWorld = lookAt(camera, target, vec3(0.0, 1.0, 0.0));
