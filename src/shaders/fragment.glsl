@@ -242,9 +242,12 @@ float fbm(in vec2 x, in float H, int octaves) {
 }
 
 vec4 sdLeipae(in vec3 p) {
+    float noise5 = noise(p.xz * 5);
+    float noise30 = noise(p.xz * 30);
+    float noise50 = noise(p.xz * 50);
+
     float ellipsoidDist = sdEllipsoid(opBend(p, -0.03), vec3(5.0, 1.0, 1.5)) -
-                          0.25 + (0.05 * noise(p.xz * 5)) +
-                          (0.01 * noise(p.xz * 30));
+                          0.25 + (0.05 * noise5) + (0.01 * noise30) + (0.005 * noise50);
 
     float dist = ellipsoidDist;
     for (int i = -3; i <= 3; i++) {
@@ -263,13 +266,15 @@ vec4 sdLeipae(in vec3 p) {
         dist = opDifference(dist, wedge);
     }
 
-    vec3 material = vec3(0.88, 0.52, 0.07);
+    vec3 material = vec3(0.88, 0.52, 0.07) +
+                              (noise5 * vec3(0.5) + noise30 * vec3(0.5));
     return vec4(material, dist);
 }
 
 vec4 sdTerrain(in vec3 p) {
     vec3 material = vec3(0.81, 0.75, 0.67);
-    return vec4(material, p.y - abs(fbm((p.xz + vec2(-10.0, 20.0)) / 2.0, 1.2, 9)) * 2);
+    return vec4(material,
+                p.y - abs(fbm((p.xz + vec2(-10.0, 20.0)) / 2.0, 1.2, 9)) * 2);
 }
 
 vec2 sdChar(vec3 p, int charCode) {
@@ -341,12 +346,15 @@ vec4 sdCadiac(in vec3 p) {
 }
 
 vec4 sdScene(in vec3 p) {
-    vec4 terrain = sdTerrain(p);
+    // vec4 terrain = sdTerrain(p);
     vec4 water = sdWater(p, 0.10);
-    vec4 leipae = sdLeipae(vec3(p.x + 5, p.y - 2.0, p.z));
-    vec4 text = sdCadiac(p);
+    // vec4 leipae = sdLeipae(vec3(p.x + 5, p.y - 2.0, p.z));
+    // vec4 text = sdCadiac(p);
 
-    return opUnion(opUnion(terrain, leipae), opUnion(water, text));
+    vec4 leipae = sdLeipae(vec3(p.x, p.y - 2.0, p.z));
+
+    return opUnion(leipae, water);
+    // return opUnion(opUnion(terrain, leipae), opUnion(water, text));
 }
 
 vec3 estimateNormal(vec3 p) {
@@ -491,7 +499,8 @@ vec3 sky(in vec3 camera, in vec3 dir) {
     float dist = (2500 - camera.y) / dir.y;
     if (dist > 0.0 && dist < 100000) {
         vec3 p = (camera + dist * dir);
-        float clouds = smoothstep(-0.2, 0.5, fbm(0.0004 * p.xz + vec2(-3.0, 2.0), 1.1, 8));
+        float clouds =
+            smoothstep(-0.2, 0.5, fbm(0.0004 * p.xz + vec2(-3.0, 2.0), 1.1, 8));
         color = mix(color, vec3(1.0), 0.4 * clouds);
     }
 
@@ -504,9 +513,9 @@ vec3 sky(in vec3 camera, in vec3 dir) {
 
 void main() {
     vec3 viewDir = rayDirection(FOV, iResolution, gl_FragCoord.xy);
-    vec3 camera =
-        vec3(10.0 * cos(iTime / 10.0), 5, 10.0 * sin(iTime / 10.0));
-    vec3 target = vec3(2.0, -3.8 + 2.0 * sin(iTime / 10.0), 5.0);
+    vec3 camera = vec3(10.0 * cos(iTime / 10.0), 5, 10.0 * sin(iTime / 10.0));
+    // vec3 target = vec3(2.0, -3.8 + 2.0 * sin(iTime / 10.0), 5.0);
+    vec3 target = vec3(0.0, 2.0 * sin(iTime / 10.0), 0.0);
 
     mat4 viewToWorld = lookAt(camera, target, vec3(0.0, 1.0, 0.0));
 
