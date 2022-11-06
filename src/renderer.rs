@@ -3,9 +3,11 @@ use std::error::Error;
 use std::mem;
 use std::ptr;
 use std::str;
+use std::time::Duration;
 
 use crate::program::ShaderProgram;
 use crate::shader::Shader;
+use crate::demo::Demo;
 
 // #[rustfmt::skip]
 static VERTICES: [GLfloat; 12] = [
@@ -22,7 +24,10 @@ const FRAGMENT_SHADER: &str = include_str!("shaders/fragment.glsl");
 pub struct Renderer {
     width: f32,
     height: f32,
+
     program: ShaderProgram,
+    demo: Demo,
+
     vao: GLuint,
     vbo: GLuint,
 }
@@ -33,6 +38,7 @@ impl Renderer {
         let fs = Shader::new(FRAGMENT_SHADER, gl::FRAGMENT_SHADER)?;
 
         let program = ShaderProgram::new(vs, fs);
+        let demo = Demo::new()?;
 
         let mut vbo: GLuint = 0;
         let mut vao: GLuint = 0;
@@ -78,6 +84,7 @@ impl Renderer {
             vao,
             vbo,
             program,
+            demo,
         });
     }
 
@@ -102,12 +109,15 @@ impl Renderer {
         self.program.set_uniform2_f32("iResolution", self.width, self.height);
     }
 
-    pub unsafe fn draw(&self, t: f32) {
+    pub unsafe fn update(&mut self, t: Duration, dt: Duration) {
         gl::ClearColor(0.0, 0.0, 0.0, 1.0);
         gl::Clear(gl::COLOR_BUFFER_BIT);
 
+        self.demo.update(dt.as_secs_f32());
+
         self.program.activate();
-        self.program.set_uniform_f32("iTime", t);
+        self.program.set_uniform_f32("iTime", t.as_secs_f32());
+        self.program.set_uniform4_f32v("iLeipae", self.demo.leipae());
 
         gl::BindVertexArray(self.vao);
         gl::DrawArrays(gl::TRIANGLE_STRIP, 0, 4);

@@ -1,9 +1,12 @@
-use gl::types::*;
+use core::mem::transmute;
 use std::ffi::CString;
 use std::ptr;
 use std::str;
 
+use gl::types::*;
+
 use crate::shader::Shader;
+use crate::demo::LEIPAE_COUNT;
 
 #[derive(Debug)]
 pub struct ShaderProgram(GLuint);
@@ -52,12 +55,24 @@ impl ShaderProgram {
 
     pub unsafe fn set_uniform_f32(&self, name: &str, value: f32) {
         let name_c_str = CString::new(name.as_bytes()).unwrap();
-        gl::Uniform1f(gl::GetUniformLocation(self.id(), name_c_str.as_ptr()), value);
+        gl::Uniform1f(
+            gl::GetUniformLocation(self.id(), name_c_str.as_ptr()),
+            value,
+        );
     }
 
     pub unsafe fn set_uniform2_f32(&self, name: &str, a: f32, b: f32) {
         let name_c_str = CString::new(name.as_bytes()).unwrap();
         gl::Uniform2f(gl::GetUniformLocation(self.id(), name_c_str.as_ptr()), a, b);
+    }
+
+    pub unsafe fn set_uniform4_f32v(&self, name: &str, v: [[f32; 4]; LEIPAE_COUNT]) {
+        let name_c_str = CString::new(name.as_bytes()).unwrap();
+        gl::Uniform4fv(
+            gl::GetUniformLocation(self.id(), name_c_str.as_ptr()),
+            LEIPAE_COUNT as i32,
+            transmute::<_, *const GLfloat>(v.as_ptr()),
+        );
     }
 }
 

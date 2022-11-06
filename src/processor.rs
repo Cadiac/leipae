@@ -16,15 +16,18 @@ pub struct EventProcessor {
     is_paused: bool,
     elapsed: Duration,
     epoch: SystemTime,
+    last_tick: SystemTime,
 }
 
 impl EventProcessor {
     pub fn new() -> Self {
+        let epoch = SystemTime::now();
         Self {
             keys_held: HashSet::new(),
             is_paused: false,
             elapsed: Duration::default(),
-            epoch: SystemTime::now(),
+            epoch,
+            last_tick: epoch,
         }
     }
 
@@ -88,13 +91,15 @@ impl EventProcessor {
                 Event::NewEvents(StartCause::Poll) | Event::RedrawRequested(_) => {
                     if !self.is_paused {
                         self.elapsed = self.epoch.elapsed().unwrap();
-                    }
+                        let dt = self.last_tick.elapsed().unwrap();
+                        self.last_tick = SystemTime::now();
 
-                    unsafe {
-                        renderer.draw(self.elapsed.as_secs_f32());
+                        unsafe {
+                            renderer.update(self.elapsed, dt);
+                        }
+    
+                        gl_window.swap_buffers().unwrap();
                     }
-
-                    gl_window.swap_buffers().unwrap();
                 }
                 _ => (),
             }

@@ -3,8 +3,11 @@
 in vec4 gl_FragCoord;
 out vec4 FragColor;
 
+const int LEIPAE_COUNT = 10;
+
 uniform vec2 iResolution;
 uniform float iTime;
+uniform vec4 iLeipae[LEIPAE_COUNT];
 
 const int MAX_MARCHING_STEPS = 400;
 const float MIN_DIST = 0.0;
@@ -310,9 +313,11 @@ vec4 sdLeipaeRound(in vec3 p) {
 }
 
 vec4 sdTerrain(in vec3 p) {
-    vec3 material = vec3(0.81, 0.75, 0.67);
+    //vec3 material = vec3(0.81, 0.75, 0.67) + vec3(1.0) * (p.y - 1.0);
+    vec3 material = vec3(0.81, 0.75, 0.67) + vec3(1.0) * (sqrt(p.y) - 1.0);
+    //vec3 material = vec3(0.0);
     return vec4(material,
-                p.y - abs(fbm((p.xz + vec2(-10.0, 10.0)) / 2.0, 1.2, 9)) * 2);
+                p.y - abs(fbm((p.xz + vec2(20.0, -50.0)) / 2, 1.2, 9)) * 2);
 }
 
 vec2 sdChar(vec3 p, int charCode) {
@@ -388,10 +393,13 @@ vec4 sdScene(in vec3 p) {
     vec4 water = sdWater(p, 0.15);
     vec4 text = sdCadiac(p);
 
-    // vec4 leipae = sdLeipae(vec3(p.x + 5, p.y - 2.0, p.z));
-    // vec4 leipae = sdLeipae(vec3(p.x, p.y - 2.0, p.z));
+    vec4 leipae = vec4(0.0, 0.0, 0.0, MAX_DIST);
 
-    vec4 leipae = sdLeipaeRound(vec3(p.x, p.y - 2.0, p.z) * 2) / 2.0;
+    for(int i=0; i < LEIPAE_COUNT; i++) {
+        vec4 offset = iLeipae[i];
+        vec4 dist = sdLeipaeRound((p - offset.xyz) * offset.w) / offset.w;
+        leipae = opUnion(leipae, dist);
+    }
 
     return opUnion(opUnion(terrain, leipae), opUnion(water, text));
 }
@@ -523,7 +531,7 @@ vec3 lightning(in vec3 sun, in vec3 p, in vec3 camera, in vec3 material) {
 }
 
 vec3 fog(in vec3 color, float dist) {
-    vec3 e = exp2(-dist * 0.010 * vec3(1.0, 2.0, 4.0));
+    vec3 e = exp2(-dist * 0.010 * vec3(3.5, 2.0, 1.0));
     return color * e + (1.0 - e) * vec3(1.0);
 }
 
@@ -544,7 +552,7 @@ vec3 sky(in vec3 camera, in vec3 dir) {
     }
 
     // Fade to white fog further away
-    vec3 e = exp2(-abs(dist) * 0.00001 * vec3(1.0, 2.0, 4.0));
+    vec3 e = exp2(-abs(dist) * 0.00001 * vec3(3.5, 2.0, 1.0));
     color = color * e + (1.0 - e) * vec3(1.0);
 
     return color;
@@ -552,8 +560,7 @@ vec3 sky(in vec3 camera, in vec3 dir) {
 
 void main() {
     vec3 viewDir = rayDirection(FOV, iResolution, gl_FragCoord.xy);
-    vec3 camera = vec3(10.0 * cos(iTime / 10.0), 2, 10.0 * sin(iTime / 10.0));
-    // vec3 target = vec3(2.0, -3.8 + 2.0 * sin(iTime / 10.0), 5.0);
+    vec3 camera = vec3(20.0 * cos(iTime / 20.0), 2, 40.0 * sin(iTime / 20.0));
     vec3 target = vec3(0.0, 2.0 * sin(iTime / 10.0), 0.0);
 
     mat4 viewToWorld = lookAt(camera, target, vec3(0.0, 1.0, 0.0));
