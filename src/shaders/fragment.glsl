@@ -5,15 +5,17 @@ out vec4 FragColor;
 
 const int LEIPAE_COUNT = 10;
 
-uniform vec2 iResolution;
 uniform float iTime;
+uniform vec2 iResolution;
+uniform vec3 iCamera;
+uniform vec3 iTarget;
 uniform vec4 iLeipae[LEIPAE_COUNT];
 
 const int MAX_MARCHING_STEPS = 400;
 const float MIN_DIST = 0.0;
-const float MAX_DIST = 250.0;
+const float MAX_DIST = 100.0;
 const float FOV = 45.0;
-const float EPSILON = 0.00001;
+const float EPSILON = 0.0001;
 const float PI = 3.14159265;
 
 const vec3 SUN_COLOR = vec3(0.87, 0.75, 0.59);
@@ -125,53 +127,19 @@ vec3 opRepLim(vec3 p, float c, vec3 l) {
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
  * THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-
-float sdRoundBox(vec3 p, vec3 b, float r) {
-    vec3 q = abs(p) - b;
-    return length(max(q, 0.0)) + min(max(q.x, max(q.y, q.z)), 0.0) - r;
-}
-
 float sdBox(vec3 p, vec3 b) {
     vec3 q = abs(p) - b;
     return length(max(q, 0.0)) + min(max(q.x, max(q.y, q.z)), 0.0);
-}
-
-float sdBoxFrame(vec3 p, vec3 b, float e) {
-    p = abs(p) - b;
-    vec3 q = abs(p + e) - e;
-    return min(min(length(max(vec3(p.x, q.y, q.z), 0.0)) +
-                       min(max(p.x, max(q.y, q.z)), 0.0),
-                   length(max(vec3(q.x, p.y, q.z), 0.0)) +
-                       min(max(q.x, max(p.y, q.z)), 0.0)),
-               length(max(vec3(q.x, q.y, p.z), 0.0)) +
-                   min(max(q.x, max(q.y, p.z)), 0.0));
-}
-
-float sdTorus(vec3 p, vec2 t) {
-    vec2 q = vec2(length(p.xz) - t.x, p.y);
-    return length(q) - t.y;
 }
 
 float sdSphere(vec3 p, float s) {
     return length(p) - s;
 }
 
-vec4 sdWater(vec3 p, float y) {
-    vec3 material = vec3(0.76, 0.83, 0.92);
-    float dist = p.y - y;
-    return vec4(material, dist);
-}
-
 float sdEllipsoid(vec3 p, vec3 r) {
     float k0 = length(p / r);
     float k1 = length(p / (r * r));
     return k0 * (k0 - 1.0) / k1;
-}
-
-float sdCapsule(vec3 p, vec3 a, vec3 b, float r) {
-    vec3 pa = p - a, ba = b - a;
-    float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
-    return length(pa - ba * h) - r;
 }
 
 float sdTriPrism(vec3 p, vec2 h) {
@@ -189,10 +157,13 @@ float sdArc(in vec2 p, in float sc, in float ra, float rb) {
            rb;
 }
 
-/**
- * Derived from: https://iquilezles.org/articles/morenoise/
- * Vector hash function, unsafe for security use
- */
+vec4 sdWater(vec3 p, float y) {
+    vec3 material = vec3(0.76, 0.83, 0.92);
+    float dist = p.y - y;
+    return vec4(material, dist);
+}
+
+// Derived from: https://iquilezles.org/articles/morenoise/
 float hash(vec2 x) {
     vec2 integer = floor(x);
     vec2 fractional = fract(x);
@@ -204,10 +175,7 @@ float hash(vec2 x) {
     return 2.0 * fract(ua.x * ua.y * (ua.x + ua.y)) - 1.0;
 }
 
-/**
- * Derived from: https://iquilezles.org/articles/morenoise/
- * Value noise generator
- */
+// Derived from: https://iquilezles.org/articles/morenoise/
 float valuenoise(in vec2 x) {
     vec2 integer = floor(x);
     vec2 fractional = fract(x);
@@ -227,10 +195,7 @@ float valuenoise(in vec2 x) {
     return 0.0 + 1.0 * (k0 + k1 * u.x + k2 * u.y + k4 * u.x * u.y);
 }
 
-/**
- * Derived from: https://iquilezles.org/articles/fbm/
- * Fractional Brownian Motion from noise
- */
+// Derived from: https://iquilezles.org/articles/fbm/
 float fbm(in vec2 x, in float H, int octaves) {
     float G = exp2(-H);
     float f = 1.0;
@@ -276,6 +241,10 @@ vec4 sdLeipae(in vec3 p) {
 }
 
 vec4 sdLeipaeRound(in vec3 p) {
+    if (sdSphere(p, 10) > 0) {
+        return vec4(0.0, 0.0, 0.0, MAX_DIST);
+    }
+
     float noise5 = noise(p.xz * 5);
     float noise30 = noise(p.xz * 30);
     float noise50 = noise(p.xz * 50);
@@ -313,9 +282,10 @@ vec4 sdLeipaeRound(in vec3 p) {
 }
 
 vec4 sdTerrain(in vec3 p) {
-    //vec3 material = vec3(0.81, 0.75, 0.67) + vec3(1.0) * (p.y - 1.0);
-    vec3 material = vec3(0.81, 0.75, 0.67) + vec3(1.0) * (sqrt(p.y) - 1.0);
-    //vec3 material = vec3(0.0);
+    // vec3 material = vec3(0.81, 0.75, 0.67) + vec3(1.0) * (p.y - 1.0);
+    // vec3 material = vec3(0.81, 0.75, 0.67) + vec3(1.0) * (sqrt(p.y) - 1.0);
+    vec3 material = vec3(0.81, 0.75, 0.67);
+    // vec3 material = vec3(0.0);
     return vec4(material,
                 p.y - abs(fbm((p.xz + vec2(20.0, -50.0)) / 2, 1.2, 9)) * 2);
 }
@@ -395,7 +365,7 @@ vec4 sdScene(in vec3 p) {
 
     vec4 leipae = vec4(0.0, 0.0, 0.0, MAX_DIST);
 
-    for(int i=0; i < LEIPAE_COUNT; i++) {
+    for (int i = 0; i < LEIPAE_COUNT; i++) {
         vec4 offset = iLeipae[i];
         vec4 dist = sdLeipaeRound((p - offset.xyz) * offset.w) / offset.w;
         leipae = opUnion(leipae, dist);
@@ -457,7 +427,7 @@ vec4 rayMarch(in vec3 camera, in vec3 rayDir, float start, float end) {
         }
 
         // TODO: Get normals from sdScene and estimate the steepness, and slow
-        // down if needed.
+        // down only if needed.
         // TODO: we could probably quite efficiently get the normals of the
         // surface here
         //       and then raymarch the bread separately.
@@ -470,7 +440,7 @@ vec4 rayMarch(in vec3 camera, in vec3 rayDir, float start, float end) {
         return vec4(material, -1.0);
     }
 
-    // TODO: Linear interpolation could help with accuracy, but doesn't.
+    // TODO: Linear interpolation could help with accuracy, but doesn't seem to.
     //       Evaluate if this is worth doing?
     // depth = lastDepth +
     //         (stepDist - lastDist) * (depth - lastDepth) / (dist - lastDist);
@@ -491,10 +461,7 @@ float shadows(in vec3 sunDir, in vec3 p) {
     return 1.0;
 }
 
-/**
- * Derived from: https://iquilezles.org/articles/rmshadows/
- * Soft shadows, k controls softness
- */
+// Derived from: https://iquilezles.org/articles/rmshadows/
 float softShadows(in vec3 sunDir, in vec3 p, float k) {
     float opacity = 1.0;
     for (float depth = 1.0; depth < MAX_DIST;) {
@@ -560,8 +527,9 @@ vec3 sky(in vec3 camera, in vec3 dir) {
 
 void main() {
     vec3 viewDir = rayDirection(FOV, iResolution, gl_FragCoord.xy);
-    vec3 camera = vec3(20.0 * cos(iTime / 20.0), 2, 40.0 * sin(iTime / 20.0));
-    vec3 target = vec3(0.0, 2.0 * sin(iTime / 10.0), 0.0);
+
+    vec3 camera = iCamera;
+    vec3 target = iTarget;
 
     mat4 viewToWorld = lookAt(camera, target, vec3(0.0, 1.0, 0.0));
 

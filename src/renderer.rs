@@ -3,11 +3,10 @@ use std::error::Error;
 use std::mem;
 use std::ptr;
 use std::str;
-use std::time::Duration;
 
+use crate::demo::Demo;
 use crate::program::ShaderProgram;
 use crate::shader::Shader;
-use crate::demo::Demo;
 
 // #[rustfmt::skip]
 static VERTICES: [GLfloat; 12] = [
@@ -26,7 +25,6 @@ pub struct Renderer {
     height: f32,
 
     program: ShaderProgram,
-    demo: Demo,
 
     vao: GLuint,
     vbo: GLuint,
@@ -38,7 +36,6 @@ impl Renderer {
         let fs = Shader::new(FRAGMENT_SHADER, gl::FRAGMENT_SHADER)?;
 
         let program = ShaderProgram::new(vs, fs);
-        let demo = Demo::new()?;
 
         let mut vbo: GLuint = 0;
         let mut vao: GLuint = 0;
@@ -84,7 +81,6 @@ impl Renderer {
             vao,
             vbo,
             program,
-            demo,
         });
     }
 
@@ -109,15 +105,18 @@ impl Renderer {
         self.program.set_uniform2_f32("iResolution", self.width, self.height);
     }
 
-    pub unsafe fn update(&mut self, t: Duration, dt: Duration) {
+    pub unsafe fn draw(&mut self, demo: &Demo) {
         gl::ClearColor(0.0, 0.0, 0.0, 1.0);
         gl::Clear(gl::COLOR_BUFFER_BIT);
 
-        self.demo.update(dt.as_secs_f32());
+        let camera = demo.camera();
+        let target = demo.target();
 
         self.program.activate();
-        self.program.set_uniform_f32("iTime", t.as_secs_f32());
-        self.program.set_uniform4_f32v("iLeipae", self.demo.leipae());
+        self.program.set_uniform_f32("iTime", demo.time());
+        self.program.set_uniform3_f32("iCamera", camera[0], camera[1], camera[2]);
+        self.program.set_uniform3_f32("iTarget", target[0], target[1], target[2]);
+        self.program.set_uniform4_f32v("iLeipae", demo.leipae());
 
         gl::BindVertexArray(self.vao);
         gl::DrawArrays(gl::TRIANGLE_STRIP, 0, 4);

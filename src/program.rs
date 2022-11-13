@@ -66,6 +66,11 @@ impl ShaderProgram {
         gl::Uniform2f(gl::GetUniformLocation(self.id(), name_c_str.as_ptr()), a, b);
     }
 
+    pub unsafe fn set_uniform3_f32(&self, name: &str, a: f32, b: f32, c: f32) {
+        let name_c_str = CString::new(name.as_bytes()).unwrap();
+        gl::Uniform3f(gl::GetUniformLocation(self.id(), name_c_str.as_ptr()), a, b, c);
+    }
+
     pub unsafe fn set_uniform4_f32v(&self, name: &str, v: [[f32; 4]; LEIPAE_COUNT]) {
         let name_c_str = CString::new(name.as_bytes()).unwrap();
         gl::Uniform4fv(
