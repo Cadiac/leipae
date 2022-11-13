@@ -45,7 +45,11 @@ impl EventProcessor {
                     } => match input.virtual_keycode {
                         Some(VirtualKeyCode::Escape) => *control_flow = ControlFlow::Exit,
                         Some(VirtualKeyCode::R) => {
-                            unsafe { renderer.reload().unwrap() };
+                            unsafe {
+                                renderer.reload().unwrap();
+                                renderer.draw(&self.demo);
+                                gl_window.swap_buffers().unwrap();
+                            };
                         }
                         Some(VirtualKeyCode::T) => {
                             self.demo.reset();

@@ -11,15 +11,18 @@ uniform vec3 iCamera;
 uniform vec3 iTarget;
 uniform vec4 iLeipae[LEIPAE_COUNT];
 
-const int MAX_MARCHING_STEPS = 400;
+const int MAX_MARCHING_STEPS = 512;
 const float MIN_DIST = 0.0;
-const float MAX_DIST = 100.0;
-const float FOV = 45.0;
+const float MAX_DIST = 250.0;
+const float FOV = 60.0;
 const float EPSILON = 0.0001;
 const float PI = 3.14159265;
 
-const vec3 SUN_COLOR = vec3(0.87, 0.75, 0.59);
-const vec3 SKY_COLOR = vec3(0.65, 0.55, 0.52);
+const vec3 SUN_COLOR = vec3(1.0);
+//const vec3 SUN_COLOR = vec3(1.00, 1.00, 1.00);
+// const vec3 SKY_COLOR = vec3(0.65, 0.55, 0.82);
+//const vec3 SKY_COLOR = vec3(0.65, 0.75, 0.92);
+const vec3 SKY_COLOR = vec3(0.06, 0.03, 0.69);
 
 // https://stackoverflow.com/a/4275343
 float rand(vec2 co) {
@@ -158,7 +161,13 @@ float sdArc(in vec2 p, in float sc, in float ra, float rb) {
 }
 
 vec4 sdWater(vec3 p, float y) {
-    vec3 material = vec3(0.76, 0.83, 0.92);
+    vec3 material = vec3(0.98, 0.11, 0.99);
+
+    vec3 fractional = fract(p);
+    if (fractional.x < 0.02 || fractional.z < 0.02) {
+        material = vec3(1, 1, 1);
+    }
+
     float dist = p.y - y;
     return vec4(material, dist);
 }
@@ -283,8 +292,8 @@ vec4 sdLeipaeRound(in vec3 p) {
 
 vec4 sdTerrain(in vec3 p) {
     // vec3 material = vec3(0.81, 0.75, 0.67) + vec3(1.0) * (p.y - 1.0);
-    // vec3 material = vec3(0.81, 0.75, 0.67) + vec3(1.0) * (sqrt(p.y) - 1.0);
-    vec3 material = vec3(0.81, 0.75, 0.67);
+    vec3 material = vec3(0.94, 0.12, 0.58) + vec3(1.0) * (sqrt(p.y) - 1.0);
+    //vec3 material = vec3(0.81, 0.75, 0.67);
     // vec3 material = vec3(0.0);
     return vec4(material,
                 p.y - abs(fbm((p.xz + vec2(20.0, -50.0)) / 2, 1.0, 9)) * 2);
@@ -360,7 +369,7 @@ vec4 sdCadiac(in vec3 p) {
 
 vec4 sdScene(in vec3 p) {
     vec4 terrain = sdTerrain(p);
-    vec4 water = sdWater(p, 0.15);
+    vec4 water = sdWater(p, 0.8);
     vec4 text = sdCadiac(p);
 
     vec4 leipae = vec4(0.0, 0.0, 0.0, MAX_DIST);
@@ -498,8 +507,8 @@ vec3 lightning(in vec3 sun, in vec3 p, in vec3 camera, in vec3 material) {
 }
 
 vec3 fog(in vec3 color, float dist) {
-    vec3 e = exp2(-dist * 0.010 * vec3(3.5, 2.0, 1.0));
-    return color * e + (1.0 - e) * vec3(1.0);
+    vec3 e = exp2(-dist * 0.010 * vec3(1.0, 2.0, 3.5));
+    return color * e + (1.0 - e) * vec3(0.94, 0.12, 0.58);
 }
 
 vec3 sky(in vec3 camera, in vec3 dir) {
@@ -514,13 +523,13 @@ vec3 sky(in vec3 camera, in vec3 dir) {
     if (dist > 0.0 && dist < 100000) {
         vec3 p = (camera + dist * dir);
         float clouds =
-            smoothstep(-0.2, 0.5, fbm(0.0004 * p.xz + vec2(-3.0, 2.0), 1.1, 8));
+            smoothstep(-0.1, 0.8, fbm(0.0002 * p.xz + vec2(-3.0, 2.0), 0.9, 8));
         color = mix(color, vec3(1.0), 0.4 * clouds);
     }
 
     // Fade to white fog further away
-    vec3 e = exp2(-abs(dist) * 0.00001 * vec3(3.5, 2.0, 1.0));
-    color = color * e + (1.0 - e) * vec3(1.0);
+    vec3 e = exp2(-abs(dist) * 0.00001 * vec3(1.0, 2.0, 3.5));
+    color = color * e + (1.0 - e) * vec3(0.94, 0.12, 0.58);
 
     return color;
 }

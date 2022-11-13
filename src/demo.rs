@@ -13,7 +13,6 @@ pub const SCENE_ORDER: &[Scene] = &[
     Scene::MovingForward,
     Scene::Intro,
     Scene::Closeup,
-    Scene::Ending,
 ];
 
 #[derive(Clone, Copy)]
@@ -152,28 +151,29 @@ impl Demo {
         self.last_tick = SystemTime::now();
     }
 
+    fn set_scene_duration(&mut self, duration: f32) {
+        self.epoch = SystemTime::now();
+        self.last_tick = SystemTime::now();
+        self.time = Duration::default();
+        self.end = Duration::from_secs_f32(duration);
+    }
+
     fn next_scene(&mut self) {
         self.scene_idx += 1;
-        self.scene = SCENE_ORDER[self.scene_idx];
+        self.scene = SCENE_ORDER[self.scene_idx % SCENE_ORDER.len()];
 
         match self.scene {
             Scene::Init => {
-                unreachable!();
+                self.scene = Scene::Intro;
             }
             Scene::Intro => {
-                self.epoch = SystemTime::now();
-                self.last_tick = SystemTime::now();
-                self.time = Duration::default();
-                self.end = Duration::from_secs_f32(5.0);
+                self.set_scene_duration(5.0);
 
                 self.update_camera = |_pos: &[f32; 3], t: f32| [20.0 * f32::cos(t / 20.0), 2.0, 40.0 * f32::sin(t / 20.0)];
                 self.update_target = |_pos: &[f32; 3], t: f32| [0.0, 2.0 * f32::sin(t / 10.0), 0.0];
             }
             Scene::Closeup => {
-                self.epoch = SystemTime::now();
-                self.last_tick = SystemTime::now();
-                self.time = Duration::default();
-                self.end = Duration::from_secs_f32(5.0);
+                self.set_scene_duration(5.0);
 
                 self.target = [0.0, 0.0, 0.0];
 
@@ -181,50 +181,35 @@ impl Demo {
                 self.update_target = noop_movement;
             }
             Scene::TopToForward => {
-                self.epoch = SystemTime::now();
-                self.last_tick = SystemTime::now();
-                self.time = Duration::default();
-                self.end = Duration::from_secs_f32(16.0);
+                self.set_scene_duration(16.0);
 
                 self.update_camera = |_pos: &[f32; 3], t: f32| [0.0, 3.0 - t / 10.0, -t / 10.0];
                 self.update_target = |_pos: &[f32; 3], t: f32| [0.0, 0.0, -1.0 - t];
             }
             Scene::ForwardToTop => {
-                self.epoch = SystemTime::now();
-                self.last_tick = SystemTime::now();
-                self.time = Duration::default();
-                self.end = Duration::from_secs_f32(15.0);
+                self.set_scene_duration(15.0);
 
                 self.update_camera = |_pos: &[f32; 3], t: f32| [0.0, 1.5 + t / 10.0, -2.0 + t / 10.0];
                 self.update_target = |_pos: &[f32; 3], t: f32| [0.0, 0.0, -20.0 + t];
             }
             Scene::MovingForward => {
-                self.epoch = SystemTime::now();
-                self.last_tick = SystemTime::now();
-                self.time = Duration::default();
-                self.end = Duration::from_secs_f32(15.0);
+                self.set_scene_duration(15.0);
 
-                self.target = [3.0, 0.5, -100.0];
+                self.target = [3.0, 0.8, -100.0];
 
-                self.update_camera = |_pos: &[f32; 3], t: f32| [3.0, 0.8, -t / 10.0];
+                self.update_camera = |_pos: &[f32; 3], t: f32| [3.0, 1.1, -t / 10.0];
                 self.update_target = noop_movement;
             }
             Scene::MovingUp => {
-                self.epoch = SystemTime::now();
-                self.last_tick = SystemTime::now();
-                self.time = Duration::default();
-                self.end = Duration::from_secs_f32(15.0);
+                self.set_scene_duration(15.0);
 
                 self.target = [3.0, 0.0, -50.0];
 
-                self.update_camera = |_pos: &[f32; 3], t: f32| [3.0, 0.8 + t / 10.0, 0.0];
+                self.update_camera = |_pos: &[f32; 3], t: f32| [3.0, 0.9 + t / 10.0, 0.0];
                 self.update_target = noop_movement;
             }
             Scene::BackwardsCircle => {
-                self.epoch = SystemTime::now();
-                self.last_tick = SystemTime::now();
-                self.time = Duration::default();
-                self.end = Duration::from_secs_f32(20.0);
+                self.set_scene_duration(20.0);
 
                 self.update_camera = |_pos: &[f32; 3], t: f32| [10.0 * f32::cos(t / 20.0), 2.0, 10.0 * f32::sin(t / 20.0)];
                 self.update_target = |_pos: &[f32; 3], t: f32| [10.0 - t, 2.0, -10.0];
