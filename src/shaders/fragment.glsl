@@ -287,7 +287,7 @@ vec4 sdTerrain(in vec3 p) {
     vec3 material = vec3(0.81, 0.75, 0.67);
     // vec3 material = vec3(0.0);
     return vec4(material,
-                p.y - abs(fbm((p.xz + vec2(20.0, -50.0)) / 2, 1.2, 9)) * 2);
+                p.y - abs(fbm((p.xz + vec2(20.0, -50.0)) / 2, 1.0, 9)) * 2);
 }
 
 vec2 sdChar(vec3 p, int charCode) {

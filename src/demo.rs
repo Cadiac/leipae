@@ -4,30 +4,54 @@ use std::time::{Duration, SystemTime};
 use rand::Rng;
 
 pub const LEIPAE_COUNT: usize = 10;
+pub const SCENE_ORDER: &[Scene] = &[
+    Scene::Init,
+    Scene::ForwardToTop,
+    Scene::TopToForward,
+    Scene::BackwardsCircle,
+    Scene::MovingUp,
+    Scene::MovingForward,
+    Scene::Intro,
+    Scene::Closeup,
+    Scene::Ending,
+];
 
-#[derive(Debug)]
+#[derive(Clone, Copy)]
 pub enum Scene {
     Init,
     Intro,
     Closeup,
+    MovingForward,
+    TopToForward,
+    ForwardToTop,
+    MovingUp,
+    BackwardsCircle,
+    Ending,
 }
 
-#[derive(Debug)]
 pub struct Demo {
     leipae: [[f32; 4]; LEIPAE_COUNT],
 
     scene: Scene,
+    scene_idx: usize,
 
     epoch: SystemTime,
     last_tick: SystemTime,
     time: Duration,
     end: Duration,
 
+    update_camera: fn(&[f32; 3], f32) -> [f32; 3],
+    update_target: fn(&[f32; 3], f32) -> [f32; 3],
+
     camera: [f32; 3],
     target: [f32; 3],
 
     is_paused: bool,
     is_exit: bool,
+}
+
+fn noop_movement(pos: &[f32; 3], _time: f32) -> [f32; 3] {
+    *pos
 }
 
 impl Demo {
@@ -51,6 +75,7 @@ impl Demo {
 
             leipae,
             scene: Scene::Init,
+            scene_idx: 0,
 
             epoch,
             last_tick: epoch,
@@ -59,6 +84,9 @@ impl Demo {
 
             camera: [0.0, 0.0, 0.0],
             target: [0.0, 0.0, 0.0],
+
+            update_camera: noop_movement,
+            update_target: noop_movement,
         }
     }
 
@@ -104,11 +132,15 @@ impl Demo {
     pub fn update(&mut self) {
         self.time = self.epoch.elapsed().unwrap();
 
+        if self.time >= self.end {
+            self.next_scene();
+        }
+
         let dt = self.last_tick.elapsed().unwrap().as_secs_f32();
         let t = self.time.as_secs_f32();
 
-        // self.camera = [20.0 * f32::cos(t / 20.0), 2.0, 40.0 * f32::sin(t / 20.0)];
-        // self.target = [0.0, 2.0 * f32::sin(t / 10.0), 0.0];
+        self.camera = (self.update_camera)(&self.camera, t);
+        self.target = (self.update_target)(&self.target, t);
 
         for i in 0..LEIPAE_COUNT {
             self.leipae[i][1] -= dt * 0.25;
@@ -117,38 +149,87 @@ impl Demo {
             }
         }
 
-        if self.time >= self.end {
-            self.next_scene();
-        }
-
         self.last_tick = SystemTime::now();
     }
 
     fn next_scene(&mut self) {
+        self.scene_idx += 1;
+        self.scene = SCENE_ORDER[self.scene_idx];
+
         match self.scene {
             Scene::Init => {
-                self.scene = Scene::Intro;
-
-                self.epoch = SystemTime::now();
-                self.last_tick = SystemTime::now();
-                self.time = Duration::default();
-                self.end = Duration::from_secs_f32(5.0);
-
-                self.camera = [20.0, 2.0, 40.0];
-                self.target = [0.0, 2.0, 0.0];
+                unreachable!();
             }
             Scene::Intro => {
-                self.scene = Scene::Closeup;
-
                 self.epoch = SystemTime::now();
                 self.last_tick = SystemTime::now();
                 self.time = Duration::default();
                 self.end = Duration::from_secs_f32(5.0);
 
-                self.camera = [5.0, 2.0, 4.0];
-                self.target = [0.0, 0.0, 0.0];
+                self.update_camera = |_pos: &[f32; 3], t: f32| [20.0 * f32::cos(t / 20.0), 2.0, 40.0 * f32::sin(t / 20.0)];
+                self.update_target = |_pos: &[f32; 3], t: f32| [0.0, 2.0 * f32::sin(t / 10.0), 0.0];
             }
             Scene::Closeup => {
+                self.epoch = SystemTime::now();
+                self.last_tick = SystemTime::now();
+                self.time = Duration::default();
+                self.end = Duration::from_secs_f32(5.0);
+
+                self.target = [0.0, 0.0, 0.0];
+
+                self.update_camera = |_pos: &[f32; 3], t: f32| [5.0 * f32::cos(t / 40.0), 2.0, 4.0 * f32::sin(t / 40.0)];
+                self.update_target = noop_movement;
+            }
+            Scene::TopToForward => {
+                self.epoch = SystemTime::now();
+                self.last_tick = SystemTime::now();
+                self.time = Duration::default();
+                self.end = Duration::from_secs_f32(16.0);
+
+                self.update_camera = |_pos: &[f32; 3], t: f32| [0.0, 3.0 - t / 10.0, -t / 10.0];
+                self.update_target = |_pos: &[f32; 3], t: f32| [0.0, 0.0, -1.0 - t];
+            }
+            Scene::ForwardToTop => {
+                self.epoch = SystemTime::now();
+                self.last_tick = SystemTime::now();
+                self.time = Duration::default();
+                self.end = Duration::from_secs_f32(15.0);
+
+                self.update_camera = |_pos: &[f32; 3], t: f32| [0.0, 1.5 + t / 10.0, -2.0 + t / 10.0];
+                self.update_target = |_pos: &[f32; 3], t: f32| [0.0, 0.0, -20.0 + t];
+            }
+            Scene::MovingForward => {
+                self.epoch = SystemTime::now();
+                self.last_tick = SystemTime::now();
+                self.time = Duration::default();
+                self.end = Duration::from_secs_f32(15.0);
+
+                self.target = [3.0, 0.5, -100.0];
+
+                self.update_camera = |_pos: &[f32; 3], t: f32| [3.0, 0.8, -t / 10.0];
+                self.update_target = noop_movement;
+            }
+            Scene::MovingUp => {
+                self.epoch = SystemTime::now();
+                self.last_tick = SystemTime::now();
+                self.time = Duration::default();
+                self.end = Duration::from_secs_f32(15.0);
+
+                self.target = [3.0, 0.0, -50.0];
+
+                self.update_camera = |_pos: &[f32; 3], t: f32| [3.0, 0.8 + t / 10.0, 0.0];
+                self.update_target = noop_movement;
+            }
+            Scene::BackwardsCircle => {
+                self.epoch = SystemTime::now();
+                self.last_tick = SystemTime::now();
+                self.time = Duration::default();
+                self.end = Duration::from_secs_f32(20.0);
+
+                self.update_camera = |_pos: &[f32; 3], t: f32| [10.0 * f32::cos(t / 20.0), 2.0, 10.0 * f32::sin(t / 20.0)];
+                self.update_target = |_pos: &[f32; 3], t: f32| [10.0 - t, 2.0, -10.0];
+            }
+            Scene::Ending => {
                 self.is_exit = true;
             }
         }
