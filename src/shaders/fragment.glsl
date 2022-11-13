@@ -342,7 +342,7 @@ vec2 sdChar(vec3 p, int charCode) {
 
 vec4 sdCadiac(in vec3 p) {
     int[] text = int[](67, 65, 68, 73, 65, 67);
-    const int chars = text.length();
+    int chars = text.length();
 
     float dist = MAX_DIST;
     float offset = -3;
