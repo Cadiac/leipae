@@ -113,7 +113,7 @@ impl Renderer {
         let target = demo.target();
 
         self.program.activate();
-        self.program.set_uniform_f32("iTime", demo.time());
+        self.program.set_uniform_f32("iTime", demo.day_time());
         self.program.set_uniform3_f32("iCamera", camera[0], camera[1], camera[2]);
         self.program.set_uniform3_f32("iTarget", target[0], target[1], target[2]);
         self.program.set_uniform4_f32v("iLeipae", demo.leipae());

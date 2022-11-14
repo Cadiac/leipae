@@ -6,13 +6,13 @@ use rand::Rng;
 pub const LEIPAE_COUNT: usize = 20;
 pub const SCENE_ORDER: &[Scene] = &[
     Scene::Init,
-    Scene::MovingForward,
-    Scene::Intro,
-    Scene::ForwardToTop,
-    Scene::TopToForward,
-    Scene::BackwardsCircle,
-    Scene::MovingUp,
-    Scene::Closeup,
+    Scene::MovingForward,   // 15sec
+    Scene::ForwardToTop,    // 15sec
+    Scene::TopToForward,    // 15sec
+    Scene::Intro,           // 20sec
+    Scene::BackwardsCircle, // 20sec
+    Scene::MovingUp,        // 15sec
+    Scene::Ending,
 ];
 
 #[derive(Clone, Copy)]
@@ -36,8 +36,10 @@ pub struct Demo {
 
     epoch: SystemTime,
     last_tick: SystemTime,
-    time: Duration,
+    start: SystemTime,
     end: Duration,
+    day_time: Duration,
+    time: Duration,
 
     update_camera: fn(&[f32; 3], f32) -> [f32; 3],
     update_target: fn(&[f32; 3], f32) -> [f32; 3],
@@ -78,8 +80,10 @@ impl Demo {
 
             epoch,
             last_tick: epoch,
-            time: Duration::default(),
+            start: epoch,
             end: Duration::default(),
+            time: Duration::default(),
+            day_time: Duration::default(),
 
             camera: [0.0, 0.0, 0.0],
             target: [0.0, 0.0, 0.0],
@@ -90,7 +94,7 @@ impl Demo {
     }
 
     pub fn reset(&mut self) {
-        self.epoch = SystemTime::now();
+        self.start = SystemTime::now();
         self.last_tick = self.epoch;
         self.time = Duration::default();
     }
@@ -101,7 +105,7 @@ impl Demo {
 
     pub fn resume(&mut self) {
         self.is_paused = false;
-        self.epoch = SystemTime::now().sub(self.time);
+        self.start = SystemTime::now().sub(self.time);
     }
 
     pub fn leipae(&self) -> [[f32; 4]; LEIPAE_COUNT] {
@@ -116,8 +120,8 @@ impl Demo {
         self.is_paused
     }
 
-    pub fn time(&self) -> f32 {
-        self.time.as_secs_f32()
+    pub fn day_time(&self) -> f32 {
+        self.day_time.as_secs_f32()
     }
 
     pub fn camera(&self) -> [f32; 3] {
@@ -129,7 +133,8 @@ impl Demo {
     }
 
     pub fn update(&mut self) {
-        self.time = self.epoch.elapsed().unwrap();
+        self.time = self.start.elapsed().unwrap();
+        self.day_time = self.epoch.elapsed().unwrap();
 
         if self.time >= self.end {
             self.next_scene();
@@ -152,9 +157,9 @@ impl Demo {
     }
 
     fn set_scene_duration(&mut self, duration: f32) {
-        self.epoch = SystemTime::now();
         self.last_tick = SystemTime::now();
         self.time = Duration::default();
+        self.start = SystemTime::now();
         self.end = Duration::from_secs_f32(duration);
     }
 
@@ -167,9 +172,9 @@ impl Demo {
                 self.scene = Scene::Intro;
             }
             Scene::Intro => {
-                self.set_scene_duration(30.0);
+                self.set_scene_duration(20.0);
 
-                self.update_camera = |_pos: &[f32; 3], t: f32| [20.0 * f32::cos(t), 2.0, 40.0 * f32::sin(t)];
+                self.update_camera = |_pos: &[f32; 3], t: f32| [20.0 * f32::cos(t / 20.0), 2.0, 40.0 * f32::sin(t / 20.0)];
                 self.update_target = |_pos: &[f32; 3], t: f32| [0.0, 2.0 * f32::sin(t / 10.0), 0.0];
             }
             Scene::Closeup => {
@@ -181,7 +186,7 @@ impl Demo {
                 self.update_target = noop_movement;
             }
             Scene::TopToForward => {
-                self.set_scene_duration(16.0);
+                self.set_scene_duration(15.0);
 
                 self.update_camera = |_pos: &[f32; 3], t: f32| [0.0, 3.0 - t / 10.0, -t / 10.0];
                 self.update_target = |_pos: &[f32; 3], t: f32| [0.0, 0.0, -1.0 - t];
@@ -197,11 +202,11 @@ impl Demo {
 
                 self.target = [3.0, 0.8, -100.0];
 
-                self.update_camera = |_pos: &[f32; 3], t: f32| [3.0, 1.1, -t / 10.0];
+                self.update_camera = |_pos: &[f32; 3], t: f32| [3.0, 1.1, -15.0 * f32::sin(t / 15.0)];
                 self.update_target = noop_movement;
             }
             Scene::MovingUp => {
-                self.set_scene_duration(15.0);
+                self.set_scene_duration(20.0);
 
                 self.target = [3.0, 0.0, -50.0];
 

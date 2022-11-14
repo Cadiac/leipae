@@ -4,6 +4,7 @@ in vec4 gl_FragCoord;
 out vec4 FragColor;
 
 const int LEIPAE_COUNT = 20;
+const float TOTAL_DURATION = 100.0;
 
 uniform float iTime;
 uniform vec2 iResolution;
@@ -303,7 +304,7 @@ vec4 sdTerrain(in vec3 p) {
     //vec3 material = vec3(0.94, 0.12, 0.58) + vec3(1.0) * (sqrt(p.y) - 1.0);
     //vec3 material = vec3(0.94, 0.12, 0.58);
     //vec3 material = vec3(0.81, 0.75, 0.67);
-    vec3 material = vec3(0.1);
+    vec3 material = vec3(0.5 * (TOTAL_DURATION - iTime) / TOTAL_DURATION);
     if (p.y - WATER_LEVEL < 0) {
         return vec4(material, MAX_DIST);
     }
@@ -587,27 +588,31 @@ void main() {
     vec4 r = rayMarch(camera, worldDir, MIN_DIST, MAX_DIST);
     float dist = r.a;
 
-    //vec3 sun = normalize(vec3(4.0, 2.0, 5.0));
-    vec3 sun = normalize(vec3(4.0 - iTime / 5.0, 5.0 - iTime / 5.0, -100.0));
+    float progress = (TOTAL_DURATION - iTime) / TOTAL_DURATION - 0.2;
+    vec3 sun = normalize(vec3(-97.0 + 100.0 * cos(progress), 100.0 * sin(progress), -100.0));
 
     if (dist < 0.0) {
         FragColor = vec4(sky(camera, worldDir, sun), 1.0);
-        return;
+    } else {
+        vec3 material = r.xyz;
+
+        // The closest point on the surface to the eyepoint along the view ray
+        vec3 p = camera + dist * worldDir;
+
+        vec3 color = lightning(sun, p, camera, material);
+        color = fog(color, dist);
+
+        color = pow(color, vec3(1.0, 0.92, 1.0));
+        color *= vec3(1.02, 0.99, 0.9);
+        color.z = color.z + 0.1;
+
+        color = smoothstep(0.0, 1.0, color);
+
+        FragColor = vec4(color, 1.0);
     }
 
-    vec3 material = r.xyz;
-
-    // The closest point on the surface to the eyepoint along the view ray
-    vec3 p = camera + dist * worldDir;
-
-    vec3 color = lightning(sun, p, camera, material);
-    color = fog(color, dist);
-
-    color = pow(color, vec3(1.0, 0.92, 1.0));
-    color *= vec3(1.02, 0.99, 0.9);
-    color.z = color.z + 0.1;
-
-    color = smoothstep(0.0, 1.0, color);
-
-    FragColor = vec4(color, 1.0);
+    // Fade to black
+    if (iTime > TOTAL_DURATION) {
+        FragColor = mix(FragColor, vec4(0.0), (iTime - TOTAL_DURATION) / 5.0);
+    }
 }
