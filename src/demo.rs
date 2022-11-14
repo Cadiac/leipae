@@ -208,7 +208,7 @@ impl Demo {
 
                 self.target = [3.0, 0.8, -100.0];
 
-                self.update_camera = |_pos: &[f32; 3], t: f32| [3.0, 1.1, -15.0 * f32::sin(t / 15.0)];
+                self.update_camera = |_pos: &[f32; 3], t: f32| [3.0, 1.1, -20.0 * f32::sin(t / 15.0)];
                 self.update_target = noop_movement;
             }
             Scene::MovingUp => {

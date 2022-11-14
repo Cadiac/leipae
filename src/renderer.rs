@@ -1,8 +1,9 @@
-use gl::types::*;
 use std::error::Error;
 use std::mem;
 use std::ptr;
 use std::str;
+
+use gl::types::*;
 
 use crate::demo::Demo;
 use crate::program::ShaderProgram;
@@ -10,10 +11,7 @@ use crate::shader::Shader;
 
 // #[rustfmt::skip]
 static VERTICES: [GLfloat; 12] = [
-   -1.0, -1.0, 0.0,
-    1.0, -1.0, 0.0,
-   -1.0,  1.0, 0.0,
-    1.0,  1.0, 0.0,
+    -1.0, -1.0, 0.0, 1.0, -1.0, 0.0, -1.0, 1.0, 0.0, 1.0, 1.0, 0.0,
 ];
 
 const VERTEX_SHADER: &str = include_str!("shaders/vertex.glsl");
@@ -91,7 +89,8 @@ impl Renderer {
         self.program = ShaderProgram::new(vs, fs);
         unsafe {
             self.program.activate();
-            self.program.set_uniform2_f32("iResolution", self.width, self.height);
+            self.program
+                .set_uniform2_f32("iResolution", self.width, self.height);
         }
 
         Ok(())
@@ -102,7 +101,8 @@ impl Renderer {
         self.height = height as f32;
 
         self.program.activate();
-        self.program.set_uniform2_f32("iResolution", self.width, self.height);
+        self.program
+            .set_uniform2_f32("iResolution", self.width, self.height);
     }
 
     pub unsafe fn draw(&mut self, demo: &Demo) {
@@ -114,9 +114,21 @@ impl Renderer {
 
         self.program.activate();
         self.program.set_uniform_f32("iTime", demo.day_time());
-        self.program.set_uniform3_f32("iCamera", camera[0], camera[1], camera[2]);
-        self.program.set_uniform3_f32("iTarget", target[0], target[1], target[2]);
+        self.program
+            .set_uniform3_f32("iCamera", camera[0], camera[1], camera[2]);
+        self.program
+            .set_uniform3_f32("iTarget", target[0], target[1], target[2]);
         self.program.set_uniform4_f32v("iLeipae", demo.leipae());
+
+        // Kavinsky - Nightcall, 91 BPM
+        // let bps = 91.0 / 60.0;
+        // self.program.set_uniform_f32(
+        //     "iBeat",
+        //     0.2 * f32::abs(f32::powi(
+        //         f32::sin(demo.day_time() * bps * std::f32::consts::PI),
+        //         8,
+        //     )),
+        // );
 
         gl::BindVertexArray(self.vao);
         gl::DrawArrays(gl::TRIANGLE_STRIP, 0, 4);

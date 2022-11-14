@@ -7,6 +7,7 @@ const int LEIPAE_COUNT = 20;
 const float TOTAL_DURATION = 100.0;
 
 uniform float iTime;
+uniform float iBeat;
 uniform vec2 iResolution;
 uniform vec3 iCamera;
 uniform vec3 iTarget;
@@ -308,7 +309,7 @@ vec4 sdTerrain(in vec3 p) {
     }
 
     return vec4(material,
-                p.y - abs(fbm((p.xz + vec2(50.0, -30.0)) / 2, 1.1, 4)) * 2);
+                p.y - abs(fbm((p.xz + vec2(50.0, -30.0)) / 2, 1.1 - iBeat, 4)) * 2);
 }
 
 vec2 sdChar(vec3 p, int charCode) {
@@ -528,6 +529,20 @@ vec3 fog(in vec3 color, float dist) {
 vec3 sky(in vec3 camera, in vec3 dir, in vec3 sun) {
     // Deeper blue when looking up
     vec3 color = SKY_COLOR - 0.5 * dir.y;
+
+    // Draw stars beyond that at 5000 height
+    // "dir" is the normalized vector towards the plane with length of 1.
+    // To get the point on the plane figure out how many steps of "dir"s are
+    // needed for the y axel delta, and then multiply the whole dir by that.
+    if (iTime > 75.0) {
+        float dist = 5000 / dir.y;
+        if (dist > 0.0 && dist < 100000) {
+            vec3 p = (camera + dist * dir);
+            float stars =
+                smoothstep(0.93, 1.0, fbm(p.xz * 0.003, 0.6, 4));
+            color = mix(color, vec3(1.0), stars);
+        }
+    }
 
     // Draw clouds on a plane at 2500 height
     // "dir" is the normalized vector towards the plane with length of 1.
