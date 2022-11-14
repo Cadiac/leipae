@@ -20,9 +20,6 @@ const float PI = 3.14159265;
 const float WATER_LEVEL = 0.3;
 
 const vec3 SUN_COLOR = vec3(0.8, 1.0, 1.0);
-//const vec3 SUN_COLOR = vec3(1.00, 1.00, 1.00);
-// const vec3 SKY_COLOR = vec3(0.65, 0.55, 0.82);
-//const vec3 SKY_COLOR = vec3(0.65, 0.75, 0.92);
 const vec3 SKY_COLOR = vec3(0.06, 0.03, 0.69);
 
 // https://stackoverflow.com/a/4275343
@@ -112,8 +109,10 @@ vec3 opRepLim(vec3 p, float c, vec3 l) {
 }
 
 /**
- * Derived from: https://iquilezles.org/articles/distfunctions/
  * SDF primitive distance functions
+ * Derived from: https://iquilezles.org/articles/distfunctions/
+ * sdBox, sdSphere, sdEllipsoid, sdTriPrism, sdArc, hash, valuenoise, fbm
+ *
  * The MIT License
  * Copyright © 2019 Inigo Quilez
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -161,18 +160,6 @@ float sdArc(in vec2 p, in float sc, in float ra, float rb) {
            rb;
 }
 
-vec4 sdWater(vec3 p, float y) {
-    vec3 material = vec3(0.98, 0.11, 0.99);
-
-    vec3 fractional = fract(p);
-    if (fractional.x < 0.02 || fractional.z < 0.02) {
-        material = vec3(1, 1, 1);
-    }
-
-    float dist = p.y - y;
-    return vec4(material, dist);
-}
-
 // Derived from: https://iquilezles.org/articles/morenoise/
 float hash(vec2 x) {
     vec2 integer = floor(x);
@@ -217,6 +204,22 @@ float fbm(in vec2 x, in float H, int octaves) {
         a *= G;
     }
     return t;
+}
+
+vec4 sdWater(vec3 p, float y) {
+    //vec3 material = vec3(0.98, 0.11, 0.99);
+    //vec3 material = vec3(1, 0, 1);
+    vec3 material = vec3(0.0);
+
+    vec3 fractional = fract(p);
+    if (fractional.x < 0.03) {
+        material = vec3(1, 0, 1);        
+    } else if (fractional.z <= 0.03) {
+        material = vec3(0, 1, 1);
+    }
+
+    float dist = p.y - y;
+    return vec4(material, dist);
 }
 
 vec4 sdLeipae(in vec3 p) {
@@ -448,8 +451,7 @@ vec4 rayMarch(in vec3 camera, in vec3 rayDir, float start, float end) {
         // TODO: Get normals from sdScene and estimate the steepness, and slow
         // down only if needed.
         // TODO: we could probably quite efficiently get the normals of the
-        // surface here
-        //       and then raymarch the bread separately.
+        // surface here and then raymarch the bread separately.
         depth += dist * 0.5;
 
         if (depth >= end) break;
@@ -521,7 +523,7 @@ vec3 fog(in vec3 color, float dist) {
     return color * e + (1.0 - e) * vec3(0.94, 0.12, 0.58);
 }
 
-vec3 sky(in vec3 camera, in vec3 dir) {
+vec3 sky(in vec3 camera, in vec3 dir, in vec3 sun) {
     // Deeper blue when looking up
     vec3 color = SKY_COLOR - 0.5 * dir.y;
 
@@ -537,9 +539,37 @@ vec3 sky(in vec3 camera, in vec3 dir) {
         color = mix(color, vec3(1.0), 0.4 * clouds);
     }
 
-    // Fade to white fog further away
+    // Fade to fog further away
     vec3 e = exp2(-abs(dist) * 0.00001 * vec3(1.0, 2.0, 3.5));
     color = color * e + (1.0 - e) * vec3(0.94, 0.12, 0.58);
+
+    // Sun
+    float dotSun = dot(sun, dir);
+    if (dotSun > 0.996) {
+        float h = dir.y - sun.y;
+        if (h > -0.02) {
+            color = vec3(1, 1, 0.5);
+        } else if (h < -0.025 && h > -0.03) {
+            color = vec3(1, 0.75, 0.6);
+        } else if (h < -0.035 && h > -0.04) {
+            color = vec3(1, 0.65, 0.7);
+        } else if (h < -0.045 && h > -0.05) {
+            color = vec3(1, 0.5, 0.82);
+        } else if (h < -0.055 && h > -0.06) {
+            color = vec3(1, 0.5, 0.82);
+        } else if (h < -0.065 && h > -0.07) {
+            color = vec3(1, 0.5, 0.92);
+        } else if (h < -0.075 && h > -0.08) {
+            color = vec3(1, 0.5, 1.00);
+        } else if (h < -0.085 && h > -0.09) {
+            color = vec3(1, 0.5, 1.00);
+        }
+    }
+
+    // Glare
+    if (dotSun > 0.995) {
+        color = mix(color, vec3(1.0, 1.0, 0.5), (dotSun - 0.995) / (1 - 0.995));
+    }
 
     return color;
 }
@@ -557,8 +587,11 @@ void main() {
     vec4 r = rayMarch(camera, worldDir, MIN_DIST, MAX_DIST);
     float dist = r.a;
 
+    //vec3 sun = normalize(vec3(4.0, 2.0, 5.0));
+    vec3 sun = normalize(vec3(4.0 - iTime / 5.0, 5.0 - iTime / 5.0, -100.0));
+
     if (dist < 0.0) {
-        FragColor = vec4(sky(camera, worldDir), 1.0);
+        FragColor = vec4(sky(camera, worldDir, sun), 1.0);
         return;
     }
 
@@ -567,7 +600,6 @@ void main() {
     // The closest point on the surface to the eyepoint along the view ray
     vec3 p = camera + dist * worldDir;
 
-    vec3 sun = normalize(vec3(4.0, 2.5, 5.0));
     vec3 color = lightning(sun, p, camera, material);
     color = fog(color, dist);
 

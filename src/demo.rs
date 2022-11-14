@@ -6,12 +6,12 @@ use rand::Rng;
 pub const LEIPAE_COUNT: usize = 20;
 pub const SCENE_ORDER: &[Scene] = &[
     Scene::Init,
+    Scene::MovingForward,
+    Scene::Intro,
     Scene::ForwardToTop,
     Scene::TopToForward,
     Scene::BackwardsCircle,
     Scene::MovingUp,
-    Scene::MovingForward,
-    Scene::Intro,
     Scene::Closeup,
 ];
 
@@ -167,9 +167,9 @@ impl Demo {
                 self.scene = Scene::Intro;
             }
             Scene::Intro => {
-                self.set_scene_duration(5.0);
+                self.set_scene_duration(30.0);
 
-                self.update_camera = |_pos: &[f32; 3], t: f32| [20.0 * f32::cos(t / 20.0), 2.0, 40.0 * f32::sin(t / 20.0)];
+                self.update_camera = |_pos: &[f32; 3], t: f32| [20.0 * f32::cos(t), 2.0, 40.0 * f32::sin(t)];
                 self.update_target = |_pos: &[f32; 3], t: f32| [0.0, 2.0 * f32::sin(t / 10.0), 0.0];
             }
             Scene::Closeup => {
