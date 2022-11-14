@@ -9,8 +9,8 @@ pub const SCENE_ORDER: &[Scene] = &[
     Scene::MovingForward,   // 15sec
     Scene::ForwardToTop,    // 15sec
     Scene::TopToForward,    // 15sec
-    Scene::Intro,           // 20sec
-    Scene::BackwardsCircle, // 20sec
+    Scene::Intro,           // 30sec
+    Scene::BackwardsCircle, // 10sec
     Scene::MovingUp,        // 15sec
     Scene::Ending,
 ];
@@ -120,6 +120,11 @@ impl Demo {
         self.is_paused
     }
 
+    pub fn skip_next(&mut self) {
+        self.day_time += self.time + self.end;
+        self.next_scene()
+    }
+
     pub fn day_time(&self) -> f32 {
         self.day_time.as_secs_f32()
     }
@@ -172,9 +177,9 @@ impl Demo {
                 self.scene = Scene::Intro;
             }
             Scene::Intro => {
-                self.set_scene_duration(20.0);
+                self.set_scene_duration(30.0);
 
-                self.update_camera = |_pos: &[f32; 3], t: f32| [20.0 * f32::cos(t / 20.0), 2.0, 40.0 * f32::sin(t / 20.0)];
+                self.update_camera = |_pos: &[f32; 3], t: f32| [-20.0 * f32::cos(t / 20.0), 2.0, 30.0 * f32::sin(t / 20.0)];
                 self.update_target = |_pos: &[f32; 3], t: f32| [0.0, 2.0 * f32::sin(t / 10.0), 0.0];
             }
             Scene::Closeup => {
@@ -214,10 +219,10 @@ impl Demo {
                 self.update_target = noop_movement;
             }
             Scene::BackwardsCircle => {
-                self.set_scene_duration(20.0);
+                self.set_scene_duration(10.0);
 
-                self.update_camera = |_pos: &[f32; 3], t: f32| [10.0 * f32::cos(t / 20.0), 2.0, 10.0 * f32::sin(t / 20.0)];
-                self.update_target = |_pos: &[f32; 3], t: f32| [10.0 - t, 2.0, -10.0];
+                self.update_camera = |_pos: &[f32; 3], t: f32| [10.0 + -10.0 * f32::sin(t / 20.0), 2.0, -10.0 * f32::cos(t / 20.0)];
+                self.update_target = |_pos: &[f32; 3], t: f32| [-10.0 + t, 2.0, -100.0];
             }
             Scene::Ending => {
                 self.is_exit = true;

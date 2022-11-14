@@ -300,17 +300,13 @@ vec4 sdLeipaeRound(in vec3 p) {
 }
 
 vec4 sdTerrain(in vec3 p) {
-    // vec3 material = vec3(0.81, 0.75, 0.67) + vec3(1.0) * (p.y - 1.0);
-    //vec3 material = vec3(0.94, 0.12, 0.58) + vec3(1.0) * (sqrt(p.y) - 1.0);
-    //vec3 material = vec3(0.94, 0.12, 0.58);
-    //vec3 material = vec3(0.81, 0.75, 0.67);
     vec3 material = vec3(0.5 * (TOTAL_DURATION - iTime) / TOTAL_DURATION);
     if (p.y - WATER_LEVEL < 0) {
         return vec4(material, MAX_DIST);
     }
 
     return vec4(material,
-                p.y - abs(fbm((p.xz + vec2(20.0, -30.0)) / 2, 1.1, 4)) * 2);
+                p.y - abs(fbm((p.xz + vec2(50.0, -30.0)) / 2, 1.1, 4)) * 2);
 }
 
 vec2 sdChar(vec3 p, int charCode) {
@@ -392,6 +388,9 @@ vec4 sdScene(in vec3 p) {
         vec4 offset = iLeipae[i];
         vec4 dist = sdLeipaeRound(tRotateZ(iTime - offset.z) * tRotateX(iTime - offset.x) * (p - offset.xyz) * offset.w) / offset.w;
         leipae = opUnion(leipae, dist);
+        if (leipae.w < EPSILON) {
+            break;
+        }
     }
 
     return opUnion(opUnion(terrain, leipae), water);
@@ -614,5 +613,7 @@ void main() {
     // Fade to black
     if (iTime > TOTAL_DURATION) {
         FragColor = mix(FragColor, vec4(0.0), (iTime - TOTAL_DURATION) / 5.0);
+    } else if (iTime < 2.0) {
+        FragColor = mix(FragColor, vec4(0.0), (2.0 - iTime) / 2.0);
     }
 }

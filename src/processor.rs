@@ -60,6 +60,9 @@ impl EventProcessor {
                         Some(VirtualKeyCode::B) => {
                             self.demo.resume();
                         }
+                        Some(VirtualKeyCode::N) => {
+                            self.demo.skip_next();
+                        }
                         Some(key_code) => {
                             if input.state == glutin::event::ElementState::Pressed {
                                 self.keys_held.insert(key_code);
