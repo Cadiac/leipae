@@ -312,78 +312,9 @@ vec4 sdTerrain(in vec3 p) {
                 p.y - abs(fbm((p.xz + vec2(50.0, -30.0)) / 2, 1.1 - iBeat, 4)) * 2);
 }
 
-vec2 sdChar(vec3 p, int charCode) {
-    switch (charCode) {
-    case 65: // A
-        return vec2(1.2,
-                    opUnion(opUnion(sdBox(tRotateZ(-60) * p + vec3(-0.25, 0, 0),
-                                          vec3(0.1, 1.0, 0.2)),
-                                    sdBox(tRotateZ(60.0) * p + vec3(0.25, 0, 0),
-                                          vec3(0.1, 1.0, 0.2))),
-                            sdBox(p, vec3(0.5, 0.1, 0.2))));
-    case 66: // B
-        return vec2(
-            1.0,
-            opUnion(
-                sdBox(p + vec3(-0.25, 0, 0), vec3(0.1, 1.0, 0.2)),
-                opUnion(
-                    opExtrusion(
-                        p,
-                        sdArc(
-                            (tRotateZ(0.5 * PI) * p + vec3(-0.45, 0.0, 0.0)).xy,
-                            2.1, 0.45, 0.1),
-                        0.2),
-                    opExtrusion(
-                        p,
-                        sdArc(
-                            (tRotateZ(0.5 * PI) * p + vec3(0.45, 0.0, 0.0)).xy,
-                            2.1, 0.45, 0.1),
-                        0.2))));
-    case 67: // C
-        return vec2(
-            1.2, opExtrusion(
-                     p,
-                     sdArc((tRotateZ(-0.5 * PI) * p + vec3(0.0, 0.4, 0.0)).xy,
-                           2.2, 0.8, 0.1),
-                     0.2));
-    case 68: // D
-        return vec2(
-            1.2,
-            opUnion(sdBox(p + vec3(-0.5, 0.0, 0.0), vec3(0.1, 0.8, 0.2)),
-                    opExtrusion(
-                        p,
-                        sdArc((tRotateZ(0.5 * PI) * p + vec3(0.0, 0.4, 0.0)).xy,
-                              PI / 2, 0.8, 0.1),
-                        0.2)));
-    case 73: // I
-        return vec2(0.6, sdBox(p + vec3(-0.5, 0.0, 0.0), vec3(0.1, 0.8, 0.2)));
-    default:
-        return vec2(0.0, 0.0);
-    }
-}
-
-vec4 sdCadiac(in vec3 p) {
-    int[] text = int[](67, 65, 68, 73, 65, 67);
-    int chars = text.length();
-
-    float dist = MAX_DIST;
-    float offset = -3;
-
-    for (int i = 0; i < chars; i++) {
-        vec2 od = sdChar(p + vec3(offset, -4.0, 0.0), text[i]);
-        offset += od.x;
-
-        dist = min(dist, od.y);
-    }
-
-    vec3 material = vec3(1.0, 1.0, 0.0);
-    return vec4(material, dist);
-}
-
 vec4 sdScene(in vec3 p) {
     vec4 terrain = sdTerrain(p);
     vec4 water = sdWater(p, WATER_LEVEL);
-    //vec4 text = sdCadiac(p);
 
     vec4 leipae = vec4(0.0, 0.0, 0.0, MAX_DIST);
 
