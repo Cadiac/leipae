@@ -1,4 +1,5 @@
 use std::error::Error;
+use glutin::window::Fullscreen;
 
 use processor::EventProcessor;
 use renderer::Renderer;
@@ -9,13 +10,13 @@ pub mod renderer;
 pub mod shader;
 pub mod demo;
 
-const WIDTH: f32 = 600.0;
-const HEIGHT: f32 = 400.0;
+const WIDTH: f32 = 1920.0;
+const HEIGHT: f32 = 1080.0;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let event_loop = glutin::event_loop::EventLoop::new();
     let window = glutin::window::WindowBuilder::new()
-        .with_title("demohäsä")
+        .with_title("Leipae")
         .with_inner_size(glutin::dpi::LogicalSize::new(WIDTH, HEIGHT));
 
     let gl_window = glutin::ContextBuilder::new()
@@ -25,6 +26,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         .expect("failed to build gl_window");
 
     let gl_window = unsafe { gl_window.make_current() }.expect("failed to make context current");
+
+    gl_window.window().set_fullscreen(Some(Fullscreen::Borderless(None)));
 
     gl::load_with(|symbol| gl_window.get_proc_address(symbol));
 

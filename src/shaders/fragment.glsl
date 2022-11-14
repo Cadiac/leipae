@@ -12,6 +12,8 @@ uniform vec3 iCamera;
 uniform vec3 iTarget;
 uniform vec4 iLeipae[LEIPAE_COUNT];
 
+float PROGRESS = (TOTAL_DURATION - iTime) / TOTAL_DURATION;
+
 const int MAX_MARCHING_STEPS = 512;
 const float MIN_DIST = 0.0;
 const float MAX_DIST = 100.0;
@@ -300,7 +302,7 @@ vec4 sdLeipaeRound(in vec3 p) {
 }
 
 vec4 sdTerrain(in vec3 p) {
-    vec3 material = vec3(0.5 * (TOTAL_DURATION - iTime) / TOTAL_DURATION);
+    vec3 material = vec3(0.5 * PROGRESS);
     if (p.y - WATER_LEVEL < 0) {
         return vec4(material, MAX_DIST);
     }
@@ -547,6 +549,7 @@ vec3 sky(in vec3 camera, in vec3 dir, in vec3 sun) {
     float dotSun = dot(sun, dir);
     if (dotSun > 0.996) {
         float h = dir.y - sun.y;
+        // Stripes
         if (h > -0.02) {
             color = vec3(1, 1, 0.5);
         } else if (h < -0.025 && h > -0.03) {
@@ -587,8 +590,7 @@ void main() {
     vec4 r = rayMarch(camera, worldDir, MIN_DIST, MAX_DIST);
     float dist = r.a;
 
-    float progress = (TOTAL_DURATION - iTime) / TOTAL_DURATION - 0.2;
-    vec3 sun = normalize(vec3(-97.0 + 100.0 * cos(progress), 100.0 * sin(progress), -100.0));
+    vec3 sun = normalize(vec3(-97.0 + 100.0 * cos(PROGRESS - 0.2), 100.0 * sin(PROGRESS - 0.2), -100.0));
 
     if (dist < 0.0) {
         FragColor = vec4(sky(camera, worldDir, sun), 1.0);
@@ -610,10 +612,11 @@ void main() {
         FragColor = vec4(color, 1.0);
     }
 
-    // Fade to black
     if (iTime > TOTAL_DURATION) {
+        // Fade to black
         FragColor = mix(FragColor, vec4(0.0), (iTime - TOTAL_DURATION) / 5.0);
     } else if (iTime < 2.0) {
+        // Fade in
         FragColor = mix(FragColor, vec4(0.0), (2.0 - iTime) / 2.0);
     }
 }

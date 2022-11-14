@@ -1,4 +1,4 @@
-use std::ops::Sub;
+use std::ops::{Sub, SubAssign};
 use std::time::{Duration, SystemTime};
 
 use rand::Rng;
@@ -121,7 +121,8 @@ impl Demo {
     }
 
     pub fn skip_next(&mut self) {
-        self.day_time += self.time + self.end;
+        self.day_time += self.end - self.time;
+        self.epoch.sub_assign(self.end - self.time);
         self.next_scene()
     }
 

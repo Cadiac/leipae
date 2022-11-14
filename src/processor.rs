@@ -1,14 +1,14 @@
 use std::collections::HashSet;
 use std::error::Error;
 
-use glutin::event::{Event, StartCause, VirtualKeyCode, WindowEvent};
+use glutin::event::{ElementState, Event, MouseButton, StartCause, VirtualKeyCode, WindowEvent};
 use glutin::event_loop::{ControlFlow, EventLoop};
 use glutin::platform::run_return::EventLoopExtRunReturn;
 use glutin::window::Window;
 use glutin::{ContextWrapper, PossiblyCurrent};
 
-use crate::renderer::Renderer;
 use crate::demo::Demo;
+use crate::renderer::Renderer;
 
 pub struct EventProcessor {
     keys_held: HashSet<VirtualKeyCode>,
@@ -38,11 +38,15 @@ impl EventProcessor {
                     _ => (),
                 },
                 Event::WindowEvent { event, .. } => match event {
-                    WindowEvent::KeyboardInput {
-                        input,
-                        device_id: _,
-                        is_synthetic: _,
-                    } => match input.virtual_keycode {
+                    WindowEvent::MouseInput { state, button, .. } => match button {
+                        MouseButton::Left => {
+                            if let ElementState::Pressed = state {
+                                self.demo.skip_next();
+                            }
+                        }
+                        _ => (),
+                    },
+                    WindowEvent::KeyboardInput { input, .. } => match input.virtual_keycode {
                         Some(VirtualKeyCode::Escape) => *control_flow = ControlFlow::Exit,
                         Some(VirtualKeyCode::R) => {
                             unsafe {
@@ -59,9 +63,6 @@ impl EventProcessor {
                         }
                         Some(VirtualKeyCode::B) => {
                             self.demo.resume();
-                        }
-                        Some(VirtualKeyCode::N) => {
-                            self.demo.skip_next();
                         }
                         Some(key_code) => {
                             if input.state == glutin::event::ElementState::Pressed {
@@ -91,7 +92,7 @@ impl EventProcessor {
                         unsafe {
                             renderer.draw(&self.demo);
                         }
-    
+
                         gl_window.swap_buffers().unwrap();
                     }
                 }
