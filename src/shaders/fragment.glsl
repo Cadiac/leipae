@@ -3,7 +3,7 @@
 in vec4 gl_FragCoord;
 out vec4 FragColor;
 
-const int LEIPAE_COUNT = 10;
+const int LEIPAE_COUNT = 20;
 
 uniform float iTime;
 uniform vec2 iResolution;
@@ -13,12 +13,13 @@ uniform vec4 iLeipae[LEIPAE_COUNT];
 
 const int MAX_MARCHING_STEPS = 512;
 const float MIN_DIST = 0.0;
-const float MAX_DIST = 250.0;
+const float MAX_DIST = 100.0;
 const float FOV = 60.0;
-const float EPSILON = 0.0001;
+const float EPSILON = 0.00001;
 const float PI = 3.14159265;
+const float WATER_LEVEL = 0.3;
 
-const vec3 SUN_COLOR = vec3(1.0);
+const vec3 SUN_COLOR = vec3(0.8, 1.0, 1.0);
 //const vec3 SUN_COLOR = vec3(1.00, 1.00, 1.00);
 // const vec3 SKY_COLOR = vec3(0.65, 0.55, 0.82);
 //const vec3 SKY_COLOR = vec3(0.65, 0.75, 0.92);
@@ -219,6 +220,10 @@ float fbm(in vec2 x, in float H, int octaves) {
 }
 
 vec4 sdLeipae(in vec3 p) {
+    if (sdSphere(p, 10) > 0) {
+        return vec4(0.0, 0.0, 0.0, MAX_DIST);
+    }
+
     float noise5 = noise(p.xz * 5);
     float noise30 = noise(p.xz * 30);
     float noise50 = noise(p.xz * 50);
@@ -292,11 +297,16 @@ vec4 sdLeipaeRound(in vec3 p) {
 
 vec4 sdTerrain(in vec3 p) {
     // vec3 material = vec3(0.81, 0.75, 0.67) + vec3(1.0) * (p.y - 1.0);
-    vec3 material = vec3(0.94, 0.12, 0.58) + vec3(1.0) * (sqrt(p.y) - 1.0);
+    //vec3 material = vec3(0.94, 0.12, 0.58) + vec3(1.0) * (sqrt(p.y) - 1.0);
+    //vec3 material = vec3(0.94, 0.12, 0.58);
     //vec3 material = vec3(0.81, 0.75, 0.67);
-    // vec3 material = vec3(0.0);
+    vec3 material = vec3(0.1);
+    if (p.y - WATER_LEVEL < 0) {
+        return vec4(material, MAX_DIST);
+    }
+
     return vec4(material,
-                p.y - abs(fbm((p.xz + vec2(20.0, -50.0)) / 2, 1.0, 9)) * 2);
+                p.y - abs(fbm((p.xz + vec2(20.0, -30.0)) / 2, 1.1, 4)) * 2);
 }
 
 vec2 sdChar(vec3 p, int charCode) {
@@ -369,18 +379,18 @@ vec4 sdCadiac(in vec3 p) {
 
 vec4 sdScene(in vec3 p) {
     vec4 terrain = sdTerrain(p);
-    vec4 water = sdWater(p, 0.8);
-    vec4 text = sdCadiac(p);
+    vec4 water = sdWater(p, WATER_LEVEL);
+    //vec4 text = sdCadiac(p);
 
     vec4 leipae = vec4(0.0, 0.0, 0.0, MAX_DIST);
 
     for (int i = 0; i < LEIPAE_COUNT; i++) {
         vec4 offset = iLeipae[i];
-        vec4 dist = sdLeipaeRound((p - offset.xyz) * offset.w) / offset.w;
+        vec4 dist = sdLeipaeRound(tRotateZ(iTime - offset.z) * tRotateX(iTime - offset.x) * (p - offset.xyz) * offset.w) / offset.w;
         leipae = opUnion(leipae, dist);
     }
 
-    return opUnion(opUnion(terrain, leipae), opUnion(water, text));
+    return opUnion(opUnion(terrain, leipae), water);
 }
 
 vec3 estimateNormal(vec3 p) {
@@ -491,7 +501,7 @@ vec3 lightning(in vec3 sun, in vec3 p, in vec3 camera, in vec3 material) {
     vec3 sunLight = vec3(0.0);
     if (dotNS > 0) {
         sunLight =
-            clamp(SUN_COLOR * dotNS * softShadows(sun, p, 4.0), 0.0, 1.0);
+            clamp(SUN_COLOR * dotNS * softShadows(sun, p, 24.0), 0.0, 1.0);
     }
 
     vec3 skyLight =

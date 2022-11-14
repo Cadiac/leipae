@@ -3,7 +3,7 @@ use std::time::{Duration, SystemTime};
 
 use rand::Rng;
 
-pub const LEIPAE_COUNT: usize = 10;
+pub const LEIPAE_COUNT: usize = 20;
 pub const SCENE_ORDER: &[Scene] = &[
     Scene::Init,
     Scene::ForwardToTop,
@@ -142,7 +142,7 @@ impl Demo {
         self.target = (self.update_target)(&self.target, t);
 
         for i in 0..LEIPAE_COUNT {
-            self.leipae[i][1] -= dt * 0.25;
+            self.leipae[i][1] -= dt * 0.50;
             if self.leipae[i][1] < -2.0 {
                 self.leipae[i][1] = 10.0;
             }
