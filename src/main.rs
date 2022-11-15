@@ -27,6 +27,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let gl_window = unsafe { gl_window.make_current() }.expect("failed to make context current");
 
+    gl_window.window().set_cursor_visible(false);
     gl_window.window().set_fullscreen(Some(Fullscreen::Borderless(None)));
 
     gl::load_with(|symbol| gl_window.get_proc_address(symbol));
