@@ -5,8 +5,8 @@ use std::str;
 
 use gl::types::*;
 
-use crate::shader::Shader;
 use crate::demo::LEIPAE_COUNT;
+use crate::shader::Shader;
 
 #[derive(Debug)]
 pub struct ShaderProgram(GLuint);
@@ -35,9 +35,7 @@ impl ShaderProgram {
 
                 panic!(
                     "{}",
-                    str::from_utf8(&log_buffer)
-                        .ok()
-                        .expect("ShaderInfoLog not valid utf8")
+                    str::from_utf8(&log_buffer).expect("ShaderInfoLog not valid utf8")
                 );
             }
         }
@@ -68,7 +66,12 @@ impl ShaderProgram {
 
     pub unsafe fn set_uniform3_f32(&self, name: &str, a: f32, b: f32, c: f32) {
         let name_c_str = CString::new(name.as_bytes()).unwrap();
-        gl::Uniform3f(gl::GetUniformLocation(self.id(), name_c_str.as_ptr()), a, b, c);
+        gl::Uniform3f(
+            gl::GetUniformLocation(self.id(), name_c_str.as_ptr()),
+            a,
+            b,
+            c,
+        );
     }
 
     pub unsafe fn set_uniform4_f32v(&self, name: &str, v: [[f32; 4]; LEIPAE_COUNT]) {

@@ -50,7 +50,7 @@ impl Renderer {
             gl::BufferData(
                 gl::ARRAY_BUFFER,
                 (VERTICES.len() * mem::size_of::<GLfloat>()) as GLsizeiptr,
-                mem::transmute(&VERTICES[0]),
+                &VERTICES[0] as *const f32 as *const std::ffi::c_void,
                 gl::STATIC_DRAW,
             );
 
@@ -73,13 +73,13 @@ impl Renderer {
             gl::BindVertexArray(0);
         }
 
-        return Ok(Self {
+        Ok(Self {
             width,
             height,
             vao,
             vbo,
             program,
-        });
+        })
     }
 
     pub unsafe fn reload(&mut self) -> Result<(), Box<dyn Error>> {

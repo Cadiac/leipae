@@ -34,17 +34,9 @@ impl EventProcessor {
 
             match event {
                 Event::LoopDestroyed => return,
-                Event::DeviceEvent { event, .. } => match event {
-                    _ => (),
-                },
                 Event::WindowEvent { event, .. } => match event {
-                    WindowEvent::MouseInput { state, button, .. } => match button {
-                        MouseButton::Left => {
-                            if let ElementState::Pressed = state {
-                                self.demo.skip_next();
-                            }
-                        }
-                        _ => (),
+                    WindowEvent::MouseInput { button: MouseButton::Left, state: ElementState::Pressed, .. } => {
+                        self.demo.skip_next();
                     },
                     WindowEvent::KeyboardInput { input, .. } => match input.virtual_keycode {
                         Some(VirtualKeyCode::Escape) => *control_flow = ControlFlow::Exit,
@@ -109,5 +101,11 @@ impl EventProcessor {
         } else {
             Err(format!("Exited with code: {}", exit_code).into())
         }
+    }
+}
+
+impl Default for EventProcessor {
+    fn default() -> Self {
+        Self::new()
     }
 }

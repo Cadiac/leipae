@@ -1,3 +1,5 @@
+#![allow(clippy::missing_safety_doc)]
+
 use std::error::Error;
 use glutin::window::Fullscreen;
 

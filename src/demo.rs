@@ -66,6 +66,12 @@ impl Leipae {
     }
 }
 
+impl Default for Leipae {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub struct Demo {
     leipaes: Vec<Leipae>,
 
@@ -276,5 +282,11 @@ impl Demo {
                 self.is_exit = true;
             }
         }
+    }
+}
+
+impl Default for Demo {
+    fn default() -> Self {
+        Self::new()
     }
 }
