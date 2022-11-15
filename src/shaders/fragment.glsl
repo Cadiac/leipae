@@ -543,7 +543,7 @@ void main() {
     if (iTime > TOTAL_DURATION) {
         // Fade to black
         FragColor = mix(FragColor, vec4(0.0), (iTime - TOTAL_DURATION) / 5.0);
-    } else if (iTime < 2.5) {
+    } else if (iTime < 2.0) {
         // Fade in
         FragColor = mix(FragColor, vec4(0.0), (2.0 - iTime) / 2.0);
     }
