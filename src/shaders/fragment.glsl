@@ -24,24 +24,10 @@ const float WATER_LEVEL = 0.3;
 
 const vec3 SUN_COLOR = vec3(0.8, 1.0, 1.0);
 const vec3 SKY_COLOR = vec3(0.06, 0.03, 0.69);
+const vec3 FOG_COLOR = vec3(0.94, 0.12, 0.58);
+const vec3 COLOR_SHIFT = vec3(2.5, 1.5, 1.0);
 
-// https://stackoverflow.com/a/4275343
-float rand(vec2 co) {
-    return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
-}
-
-// https://gist.github.com/patriciogonzalezvivo/670c22f3966e662d2f83
-float noise(vec2 p) {
-    vec2 ip = floor(p);
-    vec2 u = fract(p);
-    u = u * u * (3.0 - 2.0 * u);
-
-    float res = mix(
-        mix(rand(ip), rand(ip + vec2(1.0, 0.0)), u.x),
-        mix(rand(ip + vec2(0.0, 1.0)), rand(ip + vec2(1.0, 1.0)), u.x), u.y);
-    return res * res;
-}
-
+// Translations
 // http://en.wikipedia.org/wiki/Rotation_matrix#Basic_rotations
 mat3 tRotateX(float theta) {
     float s = sin(theta);
@@ -64,37 +50,13 @@ mat3 tRotateZ(float theta) {
     return mat3(vec3(c, -s, 0), vec3(s, c, 0), vec3(0, 0, 1));
 }
 
-float opIntersect(float distA, float distB) {
-    return max(distA, distB);
-}
-
-float opUnion(float distA, float distB) {
-    return min(distA, distB);
-}
-
-vec4 opUnion(vec4 distA, vec4 distB) {
-    if (distA.a < distB.a) {
-        return distA;
-    }
-
-    return distB;
-}
-
-float opDifference(float distA, float distB) {
-    return max(distA, -distB);
-}
-
-vec3 opBend(vec3 p, float k) {
-    float c = cos(k * p.x);
-    float s = sin(k * p.x);
-    mat2 m = mat2(c, -s, s, c);
-    return vec3(m * p.xy, p.z);
-}
 
 /**
- * SDF primitive distance functions
- * The following functions derived from: https://iquilezles.org/articles/distfunctions/
- * sdBox, sdSphere, sdEllipsoid, sdTriPrism, sdArc, hash, valuenoise, fbm
+ * The following functions are derived from:
+ * - https://iquilezles.org/articles/distfunctions/ - sdBox, sdSphere, sdEllipsoid, sdTriPrism, sdArc, opUnion, opBend
+ * - https://iquilezles.org/articles/morenoise/ - hash, valuenoise, fbm
+ * - https://iquilezles.org/articles/fbm/ - fbm
+ * - https://iquilezles.org/articles/rmshadows/ - softShadows
  *
  * The MIT License
  * Copyright © 2019 Inigo Quilez
@@ -113,6 +75,8 @@ vec3 opBend(vec3 p, float k) {
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
  * THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+
+// SDF primitive distance functions
 float sdBox(vec3 p, vec3 b) {
     vec3 q = abs(p) - b;
     return length(max(q, 0.0)) + min(max(q.x, max(q.y, q.z)), 0.0);
@@ -143,7 +107,7 @@ float sdArc(in vec2 p, in float sc, in float ra, float rb) {
            rb;
 }
 
-// Derived from: https://iquilezles.org/articles/morenoise/, MIT
+// Noise generation
 float hash(vec2 x) {
     vec2 integer = floor(x);
     vec2 fractional = fract(x);
@@ -155,7 +119,6 @@ float hash(vec2 x) {
     return 2.0 * fract(ua.x * ua.y * (ua.x + ua.y)) - 1.0;
 }
 
-// Derived from: https://iquilezles.org/articles/morenoise/, MIT
 float valuenoise(in vec2 x) {
     vec2 integer = floor(x);
     vec2 fractional = fract(x);
@@ -175,7 +138,6 @@ float valuenoise(in vec2 x) {
     return 0.0 + 1.0 * (k0 + k1 * u.x + k2 * u.y + k4 * u.x * u.y);
 }
 
-// Derived from: https://iquilezles.org/articles/fbm/, MIT
 float fbm(in vec2 x, in float H, int octaves) {
     float G = exp2(-H);
     float f = 1.0;
@@ -189,7 +151,42 @@ float fbm(in vec2 x, in float H, int octaves) {
     return t;
 }
 
-// Water with pink and cyan texture
+// https://stackoverflow.com/a/4275343
+float rand(vec2 co) {
+    return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
+}
+
+// https://gist.github.com/patriciogonzalezvivo/670c22f3966e662d2f83
+float noise(vec2 p) {
+    vec2 ip = floor(p);
+    vec2 u = fract(p);
+    u = u * u * (3.0 - 2.0 * u);
+
+    float res = mix(
+        mix(rand(ip), rand(ip + vec2(1.0, 0.0)), u.x),
+        mix(rand(ip + vec2(0.0, 1.0)), rand(ip + vec2(1.0, 1.0)), u.x), u.y);
+    return res * res;
+}
+
+// Union of SDF distances, modified to carry material color in "xyz" properties
+vec4 opUnion(vec4 distA, vec4 distB) {
+    if (distA.a < distB.a) {
+        return distA;
+    }
+
+    return distB;
+}
+
+vec3 opBend(vec3 p, float k) {
+    float c = cos(k * p.x);
+    float s = sin(k * p.x);
+    mat2 m = mat2(c, -s, s, c);
+    return vec3(m * p.xy, p.z);
+}
+
+// Scene object SDF functions
+
+// Dark water with pink and cyan texture
 vec4 sdWater(vec3 p, float y) {
     vec3 material = vec3(0.0);
 
@@ -204,7 +201,7 @@ vec4 sdWater(vec3 p, float y) {
     return vec4(material, dist);
 }
 
-// Unused, decided to not use this after all
+// Unused leipae, decided to not use this after all and just stick to the round one
 vec4 sdLeipae(in vec3 p) {
     if (sdSphere(p, 10) > 0) {
         // Get a better estimate and use that
@@ -233,7 +230,7 @@ vec4 sdLeipae(in vec3 p) {
                                  vec2(1.0, 2.0)) +
                       (0.03 * noise(p.xz * 10));
 
-        dist = opDifference(dist, wedge);
+        dist = max(dist, -wedge);
     }
 
     vec3 material =
@@ -241,6 +238,7 @@ vec4 sdLeipae(in vec3 p) {
     return vec4(material, dist);
 }
 
+// The main leipae, round with wedges cut to it
 vec4 sdLeipaeRound(in vec3 p) {
     if (sdSphere(p, 5) > 0) {
         // Get a better estimate and use that
@@ -264,7 +262,7 @@ vec4 sdLeipaeRound(in vec3 p) {
                                  vec2(1.0, 6.0)) +
                       (0.03 * noise(p.xz * 10));
 
-        dist = opDifference(dist, wedge);
+        dist = max(dist, -wedge);
     }
 
     for (int i = -1; i <= 1; i++) {
@@ -275,7 +273,7 @@ vec4 sdLeipaeRound(in vec3 p) {
                                  vec2(1.0, 6.0)) +
                       (0.03 * noise(p.xz * 10));
 
-        dist = opDifference(dist, wedge);
+        dist = max(dist, -wedge);
     }
 
     vec3 material =
@@ -283,6 +281,7 @@ vec4 sdLeipaeRound(in vec3 p) {
     return vec4(material, dist);
 }
 
+// Terrain with hills
 vec4 sdTerrain(in vec3 p) {
     vec3 material = vec3(0.6 * PROGRESS);
     if (p.y - WATER_LEVEL < 0) {
@@ -364,10 +363,9 @@ vec4 rayMarch(in vec3 camera, in vec3 rayDir, float start, float end) {
             break;
         }
 
-        // TODO: Get normals from sdScene and estimate the steepness, and slow
-        // down only if needed.
-        // TODO: we could probably quite efficiently get the normals of the
-        // surface here and then raymarch the bread separately.
+        // TODO: Get normals from sdScene and estimate the steepness,
+        // and slow down only if needed. Now without the 0.5 multiplier steep hills
+        // render artifacts.
         depth += dist * 0.5;
 
         if (depth >= end) break;
@@ -377,25 +375,7 @@ vec4 rayMarch(in vec3 camera, in vec3 rayDir, float start, float end) {
         return vec4(material, -1.0);
     }
 
-    // TODO: Linear interpolation could help with accuracy, but doesn't seem to.
-    //       Evaluate if this is worth doing?
-    // depth = lastDepth +
-    //         (stepDist - lastDist) * (depth - lastDepth) / (dist - lastDist);
-
     return vec4(material, depth);
-}
-
-float shadows(in vec3 sunDir, in vec3 p) {
-    // We don't really know where sun is, but lets say its MAX_DIST units away
-    // in sunDir. March p towards the sun, and see if we get far enough
-    for (float depth = 1.0; depth < MAX_DIST;) {
-        float dist = sdScene(p + depth * sunDir).a;
-        if (dist < EPSILON) {
-            return 0.0;
-        }
-        depth += dist;
-    }
-    return 1.0;
 }
 
 // Derived from: https://iquilezles.org/articles/rmshadows/
@@ -435,18 +415,15 @@ vec3 lightning(in vec3 sun, in vec3 p, in vec3 camera, in vec3 material) {
 }
 
 vec3 fog(in vec3 color, float dist) {
-    vec3 e = exp2(-dist * 0.010 * vec3(2.5, 1.5, 1.0));
-    return color * e + (1.0 - e) * vec3(0.94, 0.12, 0.58);
+    vec3 e = exp2(-dist * 0.010 * COLOR_SHIFT);
+    return color * e + (1.0 - e) * FOG_COLOR;
 }
 
 vec3 sky(in vec3 camera, in vec3 dir, in vec3 sun) {
     // Deeper blue when looking up
     vec3 color = SKY_COLOR - 0.5 * dir.y;
 
-    // Draw stars beyond that at 5000 height
-    // "dir" is the normalized vector towards the plane with length of 1.
-    // To get the point on the plane figure out how many steps of "dir"s are
-    // needed for the y axel delta, and then multiply the whole dir by that.
+    // Draw stars behind the clouds that at 5000 height at the end of the demo.
     if (iTime > 75.0) {
         float dist = 5000 / dir.y;
         if (dist > 0.0 && dist < 100000) {
@@ -470,8 +447,8 @@ vec3 sky(in vec3 camera, in vec3 dir, in vec3 sun) {
     }
 
     // Fade to fog further away
-    vec3 e = exp2(-abs(dist) * 0.00001 * vec3(2.5, 1.5, 1.0));
-    color = color * e + (1.0 - e) * vec3(0.94, 0.12, 0.58);
+    vec3 e = exp2(-abs(dist) * 0.00001 * COLOR_SHIFT);
+    color = color * e + (1.0 - e) * FOG_COLOR;
 
     // Sun
     float dotSun = dot(sun, dir);
@@ -497,7 +474,7 @@ vec3 sky(in vec3 camera, in vec3 dir, in vec3 sun) {
         }
     }
 
-    // Glare
+    // Sun glare
     if (dotSun > 0.995) {
         color = mix(color, vec3(1.0, 1.0, 0.5), (dotSun - 0.995) / (1 - 0.995));
     }
@@ -512,7 +489,6 @@ void main() {
     vec3 target = iTarget;
 
     mat4 viewToWorld = lookAt(camera, target, vec3(0.0, 1.0, 0.0));
-
     vec3 worldDir = (viewToWorld * vec4(viewDir, 0.0)).xyz;
 
     vec4 r = rayMarch(camera, worldDir, MIN_DIST, MAX_DIST);
@@ -541,10 +517,10 @@ void main() {
     }
 
     if (iTime > TOTAL_DURATION) {
-        // Fade to black
+        // Fade to black at the end
         FragColor = mix(FragColor, vec4(0.0), (iTime - TOTAL_DURATION) / 5.0);
     } else if (iTime < 2.0) {
-        // Fade in
+        // Fade in at the beginning
         FragColor = mix(FragColor, vec4(0.0), (2.0 - iTime) / 2.0);
     }
 }

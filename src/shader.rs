@@ -17,7 +17,7 @@ impl Shader {
             gl::ShaderSource(shader, 1, &c_str.as_ptr(), ptr::null());
             gl::CompileShader(shader);
 
-            // Check if the compilation is successful
+            // Check if the shader compilation is successful
             let mut success = gl::FALSE as GLint;
             gl::GetShaderiv(shader, gl::COMPILE_STATUS, &mut success);
 
@@ -26,7 +26,6 @@ impl Shader {
             } else {
                 Ok(Self(shader))
             }
-
         }
     }
 
