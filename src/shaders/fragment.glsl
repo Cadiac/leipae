@@ -84,18 +84,6 @@ float opDifference(float distA, float distB) {
     return max(distA, -distB);
 }
 
-float opExtrusion(in vec3 p, in float d, in float h) {
-    vec2 w = vec2(d, abs(p.z) - h);
-    return min(max(w.x, w.y), 0.0) + length(max(w, 0.0));
-}
-
-vec3 opTwist(vec3 p, float k) {
-    float c = cos(k * p.y);
-    float s = sin(k * p.y);
-    mat2 m = mat2(c, -s, s, c);
-    return vec3(m * p.xz, p.y);
-}
-
 vec3 opBend(vec3 p, float k) {
     float c = cos(k * p.x);
     float s = sin(k * p.x);
@@ -103,17 +91,9 @@ vec3 opBend(vec3 p, float k) {
     return vec3(m * p.xy, p.z);
 }
 
-vec3 opRep(vec3 p, float c) {
-    return mod(p + 0.5 * c, c) - 0.5 * c;
-}
-
-vec3 opRepLim(vec3 p, float c, vec3 l) {
-    return p - c * clamp(round(p / c), -l, l);
-}
-
 /**
  * SDF primitive distance functions
- * Derived from: https://iquilezles.org/articles/distfunctions/
+ * The following functions derived from: https://iquilezles.org/articles/distfunctions/
  * sdBox, sdSphere, sdEllipsoid, sdTriPrism, sdArc, hash, valuenoise, fbm
  *
  * The MIT License
@@ -163,7 +143,7 @@ float sdArc(in vec2 p, in float sc, in float ra, float rb) {
            rb;
 }
 
-// Derived from: https://iquilezles.org/articles/morenoise/
+// Derived from: https://iquilezles.org/articles/morenoise/, MIT
 float hash(vec2 x) {
     vec2 integer = floor(x);
     vec2 fractional = fract(x);
@@ -175,7 +155,7 @@ float hash(vec2 x) {
     return 2.0 * fract(ua.x * ua.y * (ua.x + ua.y)) - 1.0;
 }
 
-// Derived from: https://iquilezles.org/articles/morenoise/
+// Derived from: https://iquilezles.org/articles/morenoise/, MIT
 float valuenoise(in vec2 x) {
     vec2 integer = floor(x);
     vec2 fractional = fract(x);
@@ -195,7 +175,7 @@ float valuenoise(in vec2 x) {
     return 0.0 + 1.0 * (k0 + k1 * u.x + k2 * u.y + k4 * u.x * u.y);
 }
 
-// Derived from: https://iquilezles.org/articles/fbm/
+// Derived from: https://iquilezles.org/articles/fbm/, MIT
 float fbm(in vec2 x, in float H, int octaves) {
     float G = exp2(-H);
     float f = 1.0;
@@ -209,9 +189,8 @@ float fbm(in vec2 x, in float H, int octaves) {
     return t;
 }
 
+// Water with pink and cyan texture
 vec4 sdWater(vec3 p, float y) {
-    //vec3 material = vec3(0.98, 0.11, 0.99);
-    //vec3 material = vec3(1, 0, 1);
     vec3 material = vec3(0.0);
 
     vec3 fractional = fract(p);
@@ -225,9 +204,11 @@ vec4 sdWater(vec3 p, float y) {
     return vec4(material, dist);
 }
 
+// Unused, decided to not use this after all
 vec4 sdLeipae(in vec3 p) {
     if (sdSphere(p, 10) > 0) {
-        return vec4(0.0, 0.0, 0.0, MAX_DIST);
+        // Get a better estimate and use that
+        return vec4(0.0, 0.0, 0.0, sdSphere(p, 6));
     }
 
     float noise5 = noise(p.xz * 5);
@@ -262,7 +243,7 @@ vec4 sdLeipae(in vec3 p) {
 
 vec4 sdLeipaeRound(in vec3 p) {
     if (sdSphere(p, 5) > 0) {
-        // Get better estimate and use that
+        // Get a better estimate and use that
         return vec4(0.0, 0.0, 0.0, sdSphere(p, 2.5));
     }
 
@@ -322,6 +303,7 @@ vec4 sdScene(in vec3 p) {
         vec4 offset = iLeipae[i];
         vec4 dist = sdLeipaeRound(tRotateZ(iTime - offset.z) * tRotateX(iTime - offset.x) * (p - offset.xyz) * offset.w) / offset.w;
         leipae = opUnion(leipae, dist);
+
         if (leipae.w < EPSILON) {
             break;
         }
@@ -561,7 +543,7 @@ void main() {
     if (iTime > TOTAL_DURATION) {
         // Fade to black
         FragColor = mix(FragColor, vec4(0.0), (iTime - TOTAL_DURATION) / 5.0);
-    } else if (iTime < 2.0) {
+    } else if (iTime < 2.5) {
         // Fade in
         FragColor = mix(FragColor, vec4(0.0), (2.0 - iTime) / 2.0);
     }

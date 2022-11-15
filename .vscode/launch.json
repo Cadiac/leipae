@@ -7,15 +7,15 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'demohäsä'",
+            "name": "Debug executable 'leipae'",
             "cargo": {
                 "args": [
                     "build",
-                    "--bin=demohäsä",
-                    "--package=demohäsä"
+                    "--bin=leipae",
+                    "--package=leipae"
                 ],
                 "filter": {
-                    "name": "demohäsä",
+                    "name": "leipae",
                     "kind": "bin"
                 }
             },

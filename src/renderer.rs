@@ -84,7 +84,7 @@ impl Renderer {
 
     pub unsafe fn reload(&mut self) -> Result<(), Box<dyn Error>> {
         let vs = Shader::from_file("src/shaders/vertex.glsl", gl::VERTEX_SHADER)?;
-        let fs = Shader::from_file("src/shaders/fragment.min.glsl", gl::FRAGMENT_SHADER)?;
+        let fs = Shader::from_file("src/shaders/fragment.glsl", gl::FRAGMENT_SHADER)?;
 
         self.program = ShaderProgram::new(vs, fs);
         unsafe {

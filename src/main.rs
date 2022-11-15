@@ -16,7 +16,7 @@ const HEIGHT: f32 = 1080.0;
 fn main() -> Result<(), Box<dyn Error>> {
     let event_loop = glutin::event_loop::EventLoop::new();
     let window = glutin::window::WindowBuilder::new()
-        .with_title("Leipae")
+        .with_title("🍞 Leipae - by Cadiac 🍞")
         .with_inner_size(glutin::dpi::LogicalSize::new(WIDTH, HEIGHT));
 
     let gl_window = glutin::ContextBuilder::new()
