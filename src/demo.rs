@@ -153,7 +153,7 @@ impl Demo {
         self.target = (self.update_target)(&self.target, t);
 
         for i in 0..LEIPAE_COUNT {
-            self.leipae[i][1] -= dt * 0.50;
+            self.leipae[i][1] -= dt * 0.75;
             if self.leipae[i][1] < -2.0 {
                 self.leipae[i][1] = 10.0;
             }
@@ -208,7 +208,7 @@ impl Demo {
 
                 self.target = [3.0, 0.8, -100.0];
 
-                self.update_camera = |_pos: &[f32; 3], t: f32| [3.0, 1.1, -20.0 * f32::sin(t / 15.0)];
+                self.update_camera = |_pos: &[f32; 3], t: f32| [3.0, 1.1, t / 15.0 * -20.0];
                 self.update_target = noop_movement;
             }
             Scene::MovingUp => {

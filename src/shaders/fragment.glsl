@@ -7,7 +7,6 @@ const int LEIPAE_COUNT = 20;
 const float TOTAL_DURATION = 100.0;
 
 uniform float iTime;
-uniform float iBeat;
 uniform vec2 iResolution;
 uniform vec3 iCamera;
 uniform vec3 iTarget;
@@ -15,7 +14,7 @@ uniform vec4 iLeipae[LEIPAE_COUNT];
 
 float PROGRESS = (TOTAL_DURATION - iTime) / TOTAL_DURATION;
 
-const int MAX_MARCHING_STEPS = 512;
+const int MAX_MARCHING_STEPS = 400;
 const float MIN_DIST = 0.0;
 const float MAX_DIST = 100.0;
 const float FOV = 60.0;
@@ -262,8 +261,9 @@ vec4 sdLeipae(in vec3 p) {
 }
 
 vec4 sdLeipaeRound(in vec3 p) {
-    if (sdSphere(p, 10) > 0) {
-        return vec4(0.0, 0.0, 0.0, MAX_DIST);
+    if (sdSphere(p, 5) > 0) {
+        // Get better estimate and use that
+        return vec4(0.0, 0.0, 0.0, sdSphere(p, 2.5));
     }
 
     float noise5 = noise(p.xz * 5);
@@ -303,13 +303,13 @@ vec4 sdLeipaeRound(in vec3 p) {
 }
 
 vec4 sdTerrain(in vec3 p) {
-    vec3 material = vec3(0.5 * PROGRESS);
+    vec3 material = vec3(0.6 * PROGRESS);
     if (p.y - WATER_LEVEL < 0) {
         return vec4(material, MAX_DIST);
     }
 
     return vec4(material,
-                p.y - abs(fbm((p.xz + vec2(50.0, -30.0)) / 2, 1.1 - iBeat, 4)) * 2);
+                p.y - abs(fbm((p.xz + vec2(50.0, -30.0)) / 2, 1.1, 4)) * 2);
 }
 
 vec4 sdScene(in vec3 p) {
@@ -327,7 +327,7 @@ vec4 sdScene(in vec3 p) {
         }
     }
 
-    return opUnion(opUnion(terrain, leipae), water);
+    return opUnion(opUnion(terrain, water), leipae);
 }
 
 vec3 estimateNormal(vec3 p) {
@@ -453,7 +453,7 @@ vec3 lightning(in vec3 sun, in vec3 p, in vec3 camera, in vec3 material) {
 }
 
 vec3 fog(in vec3 color, float dist) {
-    vec3 e = exp2(-dist * 0.010 * vec3(1.0, 2.0, 3.5));
+    vec3 e = exp2(-dist * 0.010 * vec3(2.5, 1.5, 1.0));
     return color * e + (1.0 - e) * vec3(0.94, 0.12, 0.58);
 }
 
@@ -470,7 +470,7 @@ vec3 sky(in vec3 camera, in vec3 dir, in vec3 sun) {
         if (dist > 0.0 && dist < 100000) {
             vec3 p = (camera + dist * dir);
             float stars =
-                smoothstep(0.93, 1.0, fbm(p.xz * 0.003, 0.6, 4));
+                smoothstep(0.7, 1.0, fbm(vec2(-6.0 + p.x * 0.015, 2.0 + p.z * 0.003), 0.6, 4));
             color = mix(color, vec3(1.0), stars);
         }
     }
@@ -488,7 +488,7 @@ vec3 sky(in vec3 camera, in vec3 dir, in vec3 sun) {
     }
 
     // Fade to fog further away
-    vec3 e = exp2(-abs(dist) * 0.00001 * vec3(1.0, 2.0, 3.5));
+    vec3 e = exp2(-abs(dist) * 0.00001 * vec3(2.5, 1.5, 1.0));
     color = color * e + (1.0 - e) * vec3(0.94, 0.12, 0.58);
 
     // Sun
