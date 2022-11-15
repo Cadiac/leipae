@@ -165,7 +165,7 @@ impl Demo {
         self.is_paused
     }
 
-    pub fn skip_next(&mut self) {
+    pub fn skip_to_next(&mut self) {
         self.day_time += self.end - self.time;
         self.epoch.sub_assign(self.end - self.time);
         self.next_scene()

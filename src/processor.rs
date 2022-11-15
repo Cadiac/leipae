@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::error::Error;
 
 use glutin::event::{ElementState, Event, MouseButton, StartCause, VirtualKeyCode, WindowEvent};
@@ -11,14 +10,12 @@ use crate::demo::Demo;
 use crate::renderer::Renderer;
 
 pub struct EventProcessor {
-    keys_held: HashSet<VirtualKeyCode>,
     demo: Demo,
 }
 
 impl EventProcessor {
     pub fn new() -> Self {
         Self {
-            keys_held: HashSet::new(),
             demo: Demo::new(),
         }
     }
@@ -36,7 +33,7 @@ impl EventProcessor {
                 Event::LoopDestroyed => return,
                 Event::WindowEvent { event, .. } => match event {
                     WindowEvent::MouseInput { button: MouseButton::Left, state: ElementState::Pressed, .. } => {
-                        self.demo.skip_next();
+                        self.demo.skip_to_next();
                     },
                     WindowEvent::KeyboardInput { input, .. } => match input.virtual_keycode {
                         Some(VirtualKeyCode::Escape) => *control_flow = ControlFlow::Exit,
@@ -55,13 +52,6 @@ impl EventProcessor {
                         }
                         Some(VirtualKeyCode::B) => {
                             self.demo.resume();
-                        }
-                        Some(key_code) => {
-                            if input.state == glutin::event::ElementState::Pressed {
-                                self.keys_held.insert(key_code);
-                            } else {
-                                self.keys_held.remove(&key_code);
-                            }
                         }
                         _ => (),
                     },
