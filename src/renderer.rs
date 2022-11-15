@@ -82,6 +82,7 @@ impl Renderer {
         })
     }
 
+    // Reloads the current unminified shaders, for development purposes
     pub unsafe fn reload(&mut self) -> Result<(), Box<dyn Error>> {
         let vs = Shader::from_file("src/shaders/vertex.glsl", gl::VERTEX_SHADER)?;
         let fs = Shader::from_file("src/shaders/fragment.glsl", gl::FRAGMENT_SHADER)?;
@@ -119,16 +120,6 @@ impl Renderer {
         self.program
             .set_uniform3_f32("iTarget", target[0], target[1], target[2]);
         self.program.set_uniform4_f32v("iLeipae", demo.leipae());
-
-        // Kavinsky - Nightcall, 91 BPM
-        // let bps = 91.0 / 60.0;
-        // self.program.set_uniform_f32(
-        //     "iBeat",
-        //     0.2 * f32::abs(f32::powi(
-        //         f32::sin(demo.day_time() * bps * std::f32::consts::PI),
-        //         8,
-        //     )),
-        // );
 
         gl::BindVertexArray(self.vao);
         gl::DrawArrays(gl::TRIANGLE_STRIP, 0, 4);
