@@ -15,7 +15,7 @@ static VERTICES: [GLfloat; 12] = [
 ];
 
 const VERTEX_SHADER: &str = include_str!("shaders/vertex.glsl");
-const FRAGMENT_SHADER: &str = include_str!("shaders/fragment.glsl");
+const FRAGMENT_SHADER: &str = include_str!("shaders/fragment.min.glsl");
 
 #[derive(Debug)]
 pub struct Renderer {
@@ -84,7 +84,7 @@ impl Renderer {
 
     pub unsafe fn reload(&mut self) -> Result<(), Box<dyn Error>> {
         let vs = Shader::from_file("src/shaders/vertex.glsl", gl::VERTEX_SHADER)?;
-        let fs = Shader::from_file("src/shaders/fragment.glsl", gl::FRAGMENT_SHADER)?;
+        let fs = Shader::from_file("src/shaders/fragment.min.glsl", gl::FRAGMENT_SHADER)?;
 
         self.program = ShaderProgram::new(vs, fs);
         unsafe {

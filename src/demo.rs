@@ -42,7 +42,7 @@ impl Leipae {
 
         Self {
             x: rng.gen_range(-10.0..10.0),
-            y: rng.gen_range(1.0..10.0),
+            y: rng.gen_range(2.0..20.0),
             z: rng.gen_range(-10.0..10.0),
             scale: rng.gen_range(1.0..5.0),
             v: 0.0,
@@ -50,13 +50,13 @@ impl Leipae {
     }
 
     fn update(&mut self, dt: f32) {
-        let a = -0.7;
+        let a = -0.5;
 
         self.y += self.v * dt + 0.5 * a * dt * dt;
         self.v += a * dt;
 
         if self.y < -2.5 {
-            self.y = 10.0;
+            self.y = 20.0;
             self.v = 0.0;
         }
     }
