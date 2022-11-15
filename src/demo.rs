@@ -28,8 +28,46 @@ pub enum Scene {
     Ending,
 }
 
+struct Leipae {
+    x: f32,
+    y: f32,
+    z: f32,
+    v: f32,
+    scale: f32,
+}
+
+impl Leipae {
+    fn new() -> Self {
+        let mut rng = rand::thread_rng();
+
+        Self {
+            x: rng.gen_range(-10.0..10.0),
+            y: rng.gen_range(1.0..10.0),
+            z: rng.gen_range(-10.0..10.0),
+            scale: rng.gen_range(1.0..5.0),
+            v: 0.0,
+        }
+    }
+
+    fn update(&mut self, dt: f32) {
+        let a = -0.7;
+
+        self.y += self.v * dt + 0.5 * a * dt * dt;
+        self.v += a * dt;
+
+        if self.y < -2.5 {
+            self.y = 10.0;
+            self.v = 0.0;
+        }
+    }
+
+    fn uniform4_f32(&self) -> [f32; 4] {
+        [self.x, self.y, self.z, self.scale]
+    }
+}
+
 pub struct Demo {
-    leipae: [[f32; 4]; LEIPAE_COUNT],
+    leipaes: Vec<Leipae>,
 
     scene: Scene,
     scene_idx: usize,
@@ -57,15 +95,10 @@ fn noop_movement(pos: &[f32; 3], _time: f32) -> [f32; 3] {
 
 impl Demo {
     pub fn new() -> Self {
-        let mut rng = rand::thread_rng();
+        let mut leipaes = Vec::with_capacity(LEIPAE_COUNT);
 
-        let mut leipae = [[0.0, 0.0, 0.0, 0.0]; LEIPAE_COUNT];
-
-        for i in 0..leipae.len() {
-            leipae[i][0] = rng.gen_range(-10.0..10.0);
-            leipae[i][1] = rng.gen_range(1.0..10.0);
-            leipae[i][2] = rng.gen_range(-10.0..10.0);
-            leipae[i][3] = rng.gen_range(1.0..5.0);
+        for _ in 0..LEIPAE_COUNT {
+            leipaes.push(Leipae::new());
         }
 
         let epoch = SystemTime::now();
@@ -74,7 +107,8 @@ impl Demo {
             is_paused: false,
             is_exit: false,
 
-            leipae,
+            leipaes,
+
             scene: Scene::Init,
             scene_idx: 0,
 
@@ -109,7 +143,12 @@ impl Demo {
     }
 
     pub fn leipae(&self) -> [[f32; 4]; LEIPAE_COUNT] {
-        self.leipae
+        self.leipaes
+            .iter()
+            .map(|leipae| leipae.uniform4_f32())
+            .collect::<Vec<_>>()
+            .try_into()
+            .unwrap()
     }
 
     pub fn should_exit(&self) -> bool {
@@ -152,11 +191,8 @@ impl Demo {
         self.camera = (self.update_camera)(&self.camera, t);
         self.target = (self.update_target)(&self.target, t);
 
-        for i in 0..LEIPAE_COUNT {
-            self.leipae[i][1] -= dt * 0.75;
-            if self.leipae[i][1] < -2.0 {
-                self.leipae[i][1] = 10.0;
-            }
+        for leipae in self.leipaes.iter_mut() {
+            leipae.update(dt);
         }
 
         self.last_tick = SystemTime::now();
@@ -180,7 +216,9 @@ impl Demo {
             Scene::Intro => {
                 self.set_scene_duration(30.0);
 
-                self.update_camera = |_pos: &[f32; 3], t: f32| [-20.0 * f32::cos(t / 20.0), 2.0, 30.0 * f32::sin(t / 20.0)];
+                self.update_camera = |_pos: &[f32; 3], t: f32| {
+                    [-20.0 * f32::cos(t / 20.0), 2.0, 30.0 * f32::sin(t / 20.0)]
+                };
                 self.update_target = |_pos: &[f32; 3], t: f32| [0.0, 2.0 * f32::sin(t / 10.0), 0.0];
             }
             Scene::Closeup => {
@@ -188,7 +226,9 @@ impl Demo {
 
                 self.target = [0.0, 0.0, 0.0];
 
-                self.update_camera = |_pos: &[f32; 3], t: f32| [5.0 * f32::cos(t / 40.0), 2.0, 4.0 * f32::sin(t / 40.0)];
+                self.update_camera = |_pos: &[f32; 3], t: f32| {
+                    [5.0 * f32::cos(t / 40.0), 2.0, 4.0 * f32::sin(t / 40.0)]
+                };
                 self.update_target = noop_movement;
             }
             Scene::TopToForward => {
@@ -200,7 +240,8 @@ impl Demo {
             Scene::ForwardToTop => {
                 self.set_scene_duration(15.0);
 
-                self.update_camera = |_pos: &[f32; 3], t: f32| [0.0, 1.5 + t / 10.0, -2.0 + t / 10.0];
+                self.update_camera =
+                    |_pos: &[f32; 3], t: f32| [0.0, 1.5 + t / 10.0, -2.0 + t / 10.0];
                 self.update_target = |_pos: &[f32; 3], t: f32| [0.0, 0.0, -20.0 + t];
             }
             Scene::MovingForward => {
@@ -222,7 +263,13 @@ impl Demo {
             Scene::BackwardsCircle => {
                 self.set_scene_duration(10.0);
 
-                self.update_camera = |_pos: &[f32; 3], t: f32| [10.0 + -10.0 * f32::sin(t / 20.0), 2.0, -10.0 * f32::cos(t / 20.0)];
+                self.update_camera = |_pos: &[f32; 3], t: f32| {
+                    [
+                        10.0 + -10.0 * f32::sin(t / 20.0),
+                        2.0,
+                        -10.0 * f32::cos(t / 20.0),
+                    ]
+                };
                 self.update_target = |_pos: &[f32; 3], t: f32| [-10.0 + t, 2.0, -100.0];
             }
             Scene::Ending => {
