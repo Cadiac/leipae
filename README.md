@@ -4,6 +4,8 @@
 
 A small outrun and bread themed Rust + OpenGL intro for [Demohäsä 2022](https://tietoteekkarikilta.fi/#!/events/985) demo competition.
 
+- [YouTube](https://www.youtube.com/watch?v=K6h6xMnrbMk)
+
 ## Running
 
 Follow [Rust](https://www.rust-lang.org/en-US/install.html) installation instructions.
