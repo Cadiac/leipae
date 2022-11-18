@@ -345,30 +345,26 @@ vec4 rayMarch(in vec3 camera, in vec3 rayDir, float start, float end) {
         end = min(end, stepsToBoundingPlane);
     }
 
-    float stepDist = 0.0;
     float dist = 0.0;
     float depth = start;
 
     vec3 material = vec3(1.0);
 
     for (int i = 0; i < MAX_MARCHING_STEPS; i++) {
-        stepDist = 0.001 * depth;
-
         vec3 pos = camera + depth * rayDir;
         vec4 res = sdScene(pos);
         float dist = res.a;
 
-        if (dist < stepDist) {
+        if (abs(dist) < 0.0001) {
             material = res.xyz;
             break;
         }
 
-        // TODO: Get normals from sdScene and estimate the steepness,
-        // and slow down only if needed. Now without the 0.5 multiplier steep hills
-        // render artifacts.
-        depth += dist * 0.5;
+        if (depth >= end) {
+            break;
+        }
 
-        if (depth >= end) break;
+        depth += dist * 0.8;
     }
 
     if (depth >= end) {

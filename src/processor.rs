@@ -53,6 +53,12 @@ impl EventProcessor {
                         Some(VirtualKeyCode::B) => {
                             self.demo.resume();
                         }
+                        Some(VirtualKeyCode::F) => {
+                            gl_window.window().set_fullscreen(Some(glutin::window::Fullscreen::Borderless(None)));
+                        }
+                        Some(VirtualKeyCode::W) => {
+                            gl_window.window().set_fullscreen(None);
+                        }
                         _ => (),
                     },
                     WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
