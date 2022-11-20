@@ -15,4 +15,3 @@ panic = "abort"
 [dependencies]
 gl = "0.14.0"
 glutin = "0.29.1"
-rand = "0.8.5"

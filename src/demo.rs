@@ -1,8 +1,6 @@
 use std::ops::{Sub, SubAssign};
 use std::time::{Duration, SystemTime};
 
-use rand::Rng;
-
 pub const LEIPAE_COUNT: usize = 20;
 pub const SCENE_ORDER: &[Scene] = &[
     Scene::Init,
@@ -37,14 +35,12 @@ struct Leipae {
 }
 
 impl Leipae {
-    fn new() -> Self {
-        let mut rng = rand::thread_rng();
-
+    fn new(x: f32, y: f32, z: f32, scale: f32) -> Self {
         Self {
-            x: rng.gen_range(-10.0..10.0),
-            y: rng.gen_range(2.0..15.0),
-            z: rng.gen_range(-10.0..10.0),
-            scale: rng.gen_range(1.0..5.0),
+            x,
+            y,
+            z,
+            scale,
             v: 0.0,
         }
     }
@@ -68,12 +64,12 @@ impl Leipae {
 
 impl Default for Leipae {
     fn default() -> Self {
-        Self::new()
+        Self::new(0.0, 0.0, 0.0, 1.0)
     }
 }
 
 pub struct Demo {
-    leipaes: Vec<Leipae>,
+    leipaes: [Leipae; LEIPAE_COUNT],
 
     scene: Scene,
     scene_idx: usize,
@@ -101,11 +97,28 @@ fn noop_movement(pos: &[f32; 3], _time: f32) -> [f32; 3] {
 
 impl Demo {
     pub fn new() -> Self {
-        let mut leipaes = Vec::with_capacity(LEIPAE_COUNT);
-
-        for _ in 0..LEIPAE_COUNT {
-            leipaes.push(Leipae::new());
-        }
+        let leipaes = [
+            Leipae::new(4.31, 4.23, 8.79, 1.38),
+            Leipae::new(4.98, 5.29, 2.16, 3.78),
+            Leipae::new(3.52, 14.07, 7.02, 3.95),
+            Leipae::new(-8.97, 9.73, 3.99, 4.09),
+            Leipae::new(2.76, 5.97, 1.81, 2.99),
+            Leipae::new(-6.53, 10.46, -7.67, 1.44),
+            Leipae::new(6.09, 14.39, -6.45, 3.36),
+            Leipae::new(-1.19, 7.75, -2.36, 2.6),
+            Leipae::new(-9.47, 2.85, 4.74, 2.49),
+            Leipae::new(3.27, 9.15, -4.14, 1.24),
+            Leipae::new(-8.17, 11.09, 2.6, 4.53),
+            Leipae::new(-4.65, 3.69, 6.17, 1.1),
+            Leipae::new(6.47, 3.57, 1.91, 4.04),
+            Leipae::new(3.7, 6.08, 5.24, 1.2),
+            Leipae::new(2.41, 3.88, 0.58, 3.73),
+            Leipae::new(3.34, 13.55, -0.83, 1.79),
+            Leipae::new(2.96, 7.08, 0.38, 2.05),
+            Leipae::new(-6.2, 9.34, 7.83, 2.97),
+            Leipae::new(2.39, 10.78, -9.84, 1.72),
+            Leipae::new(-2.58, 5.68, -9.74, 1.09),
+        ];
 
         let epoch = SystemTime::now();
 

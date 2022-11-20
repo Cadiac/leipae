@@ -12,8 +12,8 @@ pub mod renderer;
 pub mod shader;
 pub mod demo;
 
-const WIDTH: f32 = 1920.0;
-const HEIGHT: f32 = 1080.0;
+const WIDTH: f32 = 400.0;
+const HEIGHT: f32 = 300.0;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let event_loop = glutin::event_loop::EventLoop::new();
@@ -30,7 +30,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let gl_window = unsafe { gl_window.make_current() }.expect("failed to make context current");
 
     gl_window.window().set_cursor_visible(false);
-    gl_window.window().set_fullscreen(Some(Fullscreen::Borderless(None)));
+    //gl_window.window().set_fullscreen(Some(Fullscreen::Borderless(None)));
 
     gl::load_with(|symbol| gl_window.get_proc_address(symbol));
 

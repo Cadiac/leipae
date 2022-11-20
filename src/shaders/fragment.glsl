@@ -14,7 +14,7 @@ uniform vec4 iLeipae[LEIPAE_COUNT];
 
 float PROGRESS = (TOTAL_DURATION - iTime) / TOTAL_DURATION;
 
-const int MAX_MARCHING_STEPS = 400;
+const int MAX_MARCHING_STEPS = 3000;
 const float MIN_DIST = 0.0;
 const float MAX_DIST = 100.0;
 const float FOV = 60.0;
@@ -253,6 +253,10 @@ vec4 sdLeipaeRound(in vec3 p) {
                           0.25 + (0.05 * noise5) + (0.01 * noise30) +
                           (0.005 * noise50);
 
+    if (ellipsoidDist > 0.1) {
+        return vec4(0.0, 0.0, 0.0, ellipsoidDist);
+    }
+
     float dist = ellipsoidDist;
     for (int i = -1; i <= 1; i++) {
         float offsetY = 1.55;
@@ -364,7 +368,7 @@ vec4 rayMarch(in vec3 camera, in vec3 rayDir, float start, float end) {
             break;
         }
 
-        depth += dist * 0.8;
+        depth += dist * 0.7;
     }
 
     if (depth >= end) {
